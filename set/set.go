@@ -20,9 +20,9 @@ func (s *Field[T]) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, &s.Value)
 }
 
-// IsSettable defines a common interface for Field types to check their state
+// ISettable defines a common interface for Field types to check their state
 // and retrieve values during reflection-based processing.
-type IsSettable interface {
+type ISettable interface {
 	WasSet() bool
 	GetValue() any
 }
@@ -60,7 +60,7 @@ func ToMap(values any) map[string]any {
 		structField := t.Field(i)
 
 		// Check if the field implements IsSettable
-		if settable, ok := field.Interface().(IsSettable); ok {
+		if settable, ok := field.Interface().(ISettable); ok {
 			if settable.WasSet() {
 				// Parse JSON tag to get the key name
 				tag := structField.Tag.Get("json")
