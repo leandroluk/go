@@ -24,6 +24,8 @@ The handler must implement the `IQueryHandler` interface.
 ```go
 type UserHandler struct {}
 
+var _ cqrs.IQueryHandler[GetUserQuery, *User] = (*UserHandler)(nil)
+
 func (h *UserHandler) Handle(ctx context.Context, q GetUserQuery) (*User, error) {
     return &User{Name: "Leandro Luk"}, nil
 }
