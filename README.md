@@ -13,7 +13,6 @@ A collection of high-performance, decoupled, and type-safe Go libraries for mode
   - [Contents](#contents)
   - [Getting started](#getting-started)
     - [Run tests across all modules](#run-tests-across-all-modules)
-    - [Generate coverage + badges](#generate-coverage--badges)
   - [Modules](#modules)
   - [Project structure](#project-structure)
   - [Philosophy](#philosophy)
@@ -28,12 +27,6 @@ This repository uses **Go Workspaces** (`go.work`) and supports **Go 1.25+**.
 
 ```sh
 make test
-```
-
-### Generate coverage + badges
-
-```sh
-make badges
 ```
 
 ## Modules
