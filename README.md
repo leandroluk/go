@@ -1,4 +1,4 @@
-# Leandro Luk - Go Core Libraries
+# Go Core Libraries
 
 This repository is a collection of high-performance, decoupled, and type-safe Go libraries designed for modern application development. 
 
