@@ -13,7 +13,7 @@ Referência rápida (com exemplos curtos).
 
 ## text
 
-Usa `golidator.Text()`.
+Usa `validator.Text()`.
 
 ### Meta
 - `.Required()`
@@ -92,7 +92,7 @@ Aceitam **hex** (tamanho fixo) ou **base64** (tamanho certo).
 Exemplo rápido:
 
 ```go
-s := golidator.Text().Required().Email()
+s := validator.Text().Required().Email()
 
 out, err := s.Validate("john@example.com")
 ```
@@ -101,7 +101,7 @@ out, err := s.Validate("john@example.com")
 
 ## number
 
-Usa `golidator.NumberSchemaOf[T]()`.
+Usa `validator.NumberSchemaOf[T]()`.
 
 - `.Required()`
 - `.Min(n)` / `.Max(n)`
@@ -112,14 +112,14 @@ Usa `golidator.NumberSchemaOf[T]()`.
 - Flags comuns: trim space, underscore
 
 ```go
-s := golidator.NumberSchemaOf[int]().Min(0).Max(130)
+s := validator.NumberSchemaOf[int]().Min(0).Max(130)
 ```
 
 ---
 
 ## boolean
 
-Usa `golidator.Boolean()` (ou equivalente no seu build).
+Usa `validator.Boolean()` (ou equivalente no seu build).
 
 - `.Required()`
 - `.Default(v)` / `.DefaultFunc(fn)`
@@ -130,7 +130,7 @@ Usa `golidator.Boolean()` (ou equivalente no seu build).
 
 ## date
 
-Usa `golidator.Date()` (ou `DateSchemaOf[time.Time]()` dependendo do seu build).
+Usa `validator.Date()` (ou `DateSchemaOf[time.Time]()` dependendo do seu build).
 
 - `.Required()`
 - `.Min(t)` / `.Max(t)`
@@ -142,7 +142,7 @@ Usa `golidator.Date()` (ou `DateSchemaOf[time.Time]()` dependendo do seu build).
 
 ## duration
 
-Usa `golidator.Duration()` (ou equivalente).
+Usa `validator.Duration()` (ou equivalente).
 
 - `.Required()`
 - `.Min(d)` / `.Max(d)`
@@ -156,7 +156,7 @@ Usa `golidator.Duration()` (ou equivalente).
 
 ## array
 
-Usa `golidator.ArraySchemaOf[T]()`.
+Usa `validator.ArraySchemaOf[T]()`.
 
 - `.Required()`
 - `.Min(n)` / `.Max(n)`
@@ -170,7 +170,7 @@ Usa `golidator.ArraySchemaOf[T]()`.
 
 ## record (map[string]V)
 
-Usa `golidator.RecordSchemaOf[V]()`.
+Usa `validator.RecordSchemaOf[V]()`.
 
 - `.Required()`
 - `.Min(n)` / `.Max(n)`
@@ -184,7 +184,7 @@ Usa `golidator.RecordSchemaOf[V]()`.
 
 ## object (struct)
 
-Usa `golidator.Object(...)`.
+Usa `validator.Object(...)`.
 
 - `.Required()`
 - `.Default(v)` / `.DefaultFunc(fn)`

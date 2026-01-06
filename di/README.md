@@ -10,9 +10,8 @@ A lightweight, reflection-based Dependency Injection container for Go, supportin
 - **Interface Binding**: Register concrete implementations as specific interfaces.
 - **Concurrency Safe**: Thread-safe registry and instance caching using `sync.RWMutex`.
 
----
-
 ## Installation
 
 ```go
 import "github.com/leandroluk/go/di"
+```

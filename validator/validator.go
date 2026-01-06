@@ -1,5 +1,5 @@
-// golidator.go
-package golidator
+// validator.go
+package validator
 
 import (
 	"fmt"

@@ -105,13 +105,12 @@ Common examples (depend on the schema):
 - `WithCoerceDurationSeconds(true)` / `WithCoerceDurationMilliseconds(true)` (e.g., `5` becomes `5s`/`5ms`).
 
 ```go
-n, err := validator.NumberSchemaOf[int]().
-	Validate(
-		" 1_000 ",
-		validator.WithCoerce(true),
-		validator.WithCoerceTrimSpace(true),
-		validator.WithCoerceNumberUnderscore(true),
-	)
+n, err := validator.NumberSchemaOf[int]().Validate(
+  " 1_000 ",
+  validator.WithCoerce(true),
+  validator.WithCoerceTrimSpace(true),
+  validator.WithCoerceNumberUnderscore(true),
+)
 ```
 
 ### OmitZero (similar to omitempty)

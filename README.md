@@ -37,6 +37,7 @@ make test
 | [**di**](./di)               | Lightweight Dependency Injection container with Singleton/Transient support. |        [![coverage](.public/di-coverage.svg)](./di)        |
 | [**env**](./env)             | Environment variables parser with automatic type coercion.                   |       [![coverage](.public/env-coverage.svg)](./env)       |
 | [**meta**](./meta)           | Metadata builder for complex filtering, sorting, and pagination.             |      [![coverage](.public/meta-coverage.svg)](./meta)      |
+| [**oas**](./oas)             | OpenAPI (Swagger) builder for complex filtering, sorting, and pagination.    |       [![coverage](.public/oas-coverage.svg)](./oas)       |
 | [**search**](./search)       | Generic query builder for complex filtering, sorting, and pagination.        |    [![coverage](.public/search-coverage.svg)](./search)    |
 | [**set**](./set)             | Tracks partial JSON updates to distinguish missing fields from zero-values.  |       [![coverage](.public/set-coverage.svg)](./set)       |
 | [**validator**](./validator) | Generic validator for complex filtering, sorting, and pagination.            | [![coverage](.public/validator-coverage.svg)](./validator) |

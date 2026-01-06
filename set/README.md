@@ -12,6 +12,7 @@ A utility package for Go that provides a generic `Field[T]` type to handle **Par
 ## Usage
 
 ### Define your DTO
+
 ```go
 type UserUpdate struct {
     Name  set.Field[string] `json:"name"`

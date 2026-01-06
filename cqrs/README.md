@@ -9,18 +9,19 @@ A robust Command Query Responsibility Segregation (CQRS) mediator for Go 1.25+.
 - **Type Safe**: Returns precise types using Go Generics.
 - **High Performance**: RWMutex protected registry with optimized reflection lookups.
 
----
-
 ## Usage
 
 ### 1. Define your Query and Result
+
 ```go
 type GetUserQuery struct { ID string }
 type User struct { Name string }
 ```
 
 ### 2. Create the Handler
+
 The handler must implement the `IQueryHandler` interface.
+
 ```go
 type UserHandler struct {}
 
@@ -32,7 +33,9 @@ func (h *UserHandler) Handle(ctx context.Context, q GetUserQuery) (*User, error)
 ```
 
 ### 3. Register with DI Factory
+
 Register the handler specifying the Message, the Result, and the Handler Type.
+
 ```go
 cqrs.RegisterQueryHandler[GetUserQuery, *User, *UserHandler](func() *UserHandler {
     return &UserHandler{}
@@ -40,24 +43,22 @@ cqrs.RegisterQueryHandler[GetUserQuery, *User, *UserHandler](func() *UserHandler
 ```
 
 ### 4. Dispatch
+
 You can send the query as a value or a pointer; the engine will coerce it automatically.
+
 ```go
 user, err := cqrs.ExecuteQuery[*User](ctx, GetUserQuery{ID: "123"})
 ```
 
----
-
 ## Technical Design
-
-
 
 - **Normalization**: The registry normalizes types to ensure that `T` and `*T` resolve to the same handler.
 - **Coercion Engine**: Before execution, the engine checks if the provided message matches the handler's input, performing pointer indirection or address-of operations if necessary.
 - **DI Integration**: Handlers are retrieved from the `di` container, allowing them to have their own dependencies (repositories, clients, etc.) injected at construction time.
 
----
 
 ## Installation
-```bash
+
+```sh
 go get github.com/leandroluk/go/cqrs
 ```

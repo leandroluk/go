@@ -5,6 +5,7 @@ use (
 	./di
 	./env
 	./meta
+	./oas
 	./search
 	./set
 	./validator

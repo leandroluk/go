@@ -9,11 +9,10 @@ A type-safe metadata and "decorator" simulation for Go 1.25+. It allows you to a
 - **Nested Support**: Automatically resolves fields in embedded or nested structs.
 - **Strongly Typed Examples**: Use generics to ensure examples match field types.
 
----
-
 ## Usage
 
 ### 1. Define and Describe your Struct
+
 ```go
 type User struct {
     ID   string
@@ -34,23 +33,22 @@ func init() {
 ```
 
 ### 2. Retrieve Metadata
+
 ```go
 m := meta.GetObjectMetadataAs[User]()
 fmt.Println(m.Description) // "Represents a system user"
 fmt.Println(m.Fields["ID"].Description) // "Unique identifier"
 ```
 
----
-
 ## Why this approach?
+
 Unlike struct tags, which are limited to strings and become unreadable when too long, `meta` allows:
 - Multi-line descriptions.
 - Complex example objects (not just strings).
 - Linking real Go Error types to documentation.
 
----
-
 ## Installation
-```bash
+
+```sh
 go get github.com/leandroluk/go/meta
 ```

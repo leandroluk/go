@@ -9,11 +9,10 @@ A flexible environment variable loader for Go 1.25+ that supports variable expan
 - **Clean Parsing**: Supports spaces around `=`, `export` prefix, and `#` or `//` comments.
 - **Default Values**: Provide fallbacks easily via generics.
 
----
-
 ## Usage
 
 ### 1. Create a `.env` file
+
 ```env
 DB_HOST     = localhost
 DB_USER     = admin
@@ -23,6 +22,7 @@ TIMEOUT     = 5s
 ```
 
 ### 2. Load and Access
+
 ```go
 env.Load(".env")
 
@@ -31,9 +31,8 @@ debug := env.Get[bool]("DEBUG", false)
 timeout := env.Get[time.Duration]("TIMEOUT")
 ```
 
----
-
 ## Installation
-```bash
+
+```sh
 go get github.com/leandroluk/go/env
 ```

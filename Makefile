@@ -6,7 +6,7 @@ BADGE_LABEL ?= coverage
 
 COVERPROFILE_ALL ?= coverage.out
 
-WORK_MODULES ?= cqrs di env meta search set validator
+WORK_MODULES ?= cqrs di env meta oas search set validator
 WORK_PACKAGES := $(addsuffix /...,$(addprefix ./,$(WORK_MODULES)))
 
 BADGE_TOOL_PKG ?= ./tools/coveragebadge
