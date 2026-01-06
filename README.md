@@ -1,6 +1,6 @@
 # Go Core Libraries
 
-<table border="0">
+<table border="0" style="border-collapse: collapse; border: 0;">
   <tr>
     <td>
       <a href="https://github.com/leandroluk/go/actions">
