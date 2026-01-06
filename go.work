@@ -7,4 +7,5 @@ use (
 	./meta
 	./search
 	./set
+	./validator
 )

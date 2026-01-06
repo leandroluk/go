@@ -6,12 +6,15 @@ All packages are compatible with **Go 1.25+** and leverage advanced features lik
 
 ## Modules Overview
 
-| Module                 | Purpose                                                                            | Status |
-| :--------------------- | :--------------------------------------------------------------------------------- | :----: |
-| [**di**](./di)         | Lightweight Dependency Injection container with Singleton/Transient support.       |   ✅    |
-| [**cqrs**](./cqrs)     | Mediator for Commands and Queries with automatic type coercion.                    |   ✅    |
-| [**set**](./set)       | Tracks partial JSON updates to distinguish between missing fields and zero-values. |   ✅    |
-| [**search**](./search) | Generic query builder for complex filtering, sorting, and pagination.              |   ✅    |
+| Module                       | Purpose                                                                            | Status |
+| :--------------------------- | :--------------------------------------------------------------------------------- | :----: |
+| [**cqrs**](./cqrs)           | Mediator for Commands and Queries with automatic type coercion.                    |   ✅    |
+| [**di**](./di)               | Lightweight Dependency Injection container with Singleton/Transient support.       |   ✅    |
+| [**env**](./env)             | Environment Variables parser with automatic type coercion.                         |   ✅    |
+| [**meta**](./meta)           | Metadata builder for complex filtering, sorting, and pagination.                   |   ✅    |
+| [**search**](./search)       | Generic query builder for complex filtering, sorting, and pagination.              |   ✅    |
+| [**set**](./set)             | Tracks partial JSON updates to distinguish between missing fields and zero-values. |   ✅    |
+| [**validator**](./validator) | Generic validator for complex filtering, sorting, and pagination.                  |   ✅    |
 
 ## Project Structure
 
@@ -21,8 +24,11 @@ The project uses **Go Workspaces** to manage multiple modules.
 .
 ├── cqrs/            # CQRS Mediator Module
 ├── di/              # Dependency Injection Module
-└── search/          # Search & Query Module
+├── env/             # Environment Variables Module
+├── meta/            # Metadata Module
+├── search/          # Search & Query Module
 ├── set/             # Partial Update Module
+├── validator/       # Validation Module
 ├── go.work          # Workspace configuration
 ```
 
@@ -31,7 +37,7 @@ The project uses **Go Workspaces** to manage multiple modules.
 To initialize the workspace and run tests across all modules:
 
 ```bash
-go work init ./cqrs ./di ./search ./set
+go work init ./cqrs ./di ./env ./meta ./search ./set ./validator
 go test ./...
 ```
 
