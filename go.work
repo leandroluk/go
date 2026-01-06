@@ -8,4 +8,5 @@ use (
 	./search
 	./set
 	./validator
+	./tools/coveragebadge
 )
