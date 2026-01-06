@@ -1,20 +1,16 @@
 # Go Core Libraries
 
-<table border="0" style="border-collapse: collapse; border: 0;">
-  <tr>
-    <td>
-      <a href="https://github.com/leandroluk/go/actions">
-        <img alt="Build Status" src="https://github.com/leandroluk/go/actions/workflows/ci.yml/badge.svg?branch=main">
-      </a>
-      <a href="https://github.com/leandroluk/go/actions">
-        <img alt="Coverage" src=".public/coverage.svg">
-      </a>
-      <a href="https://github.com/leandroluk/go/releases">
-        <img alt="Release" src="https://img.shields.io/github/release/leandroluk/go.svg?style=flat-square">
-      </a>
-    </td>
-  </tr>
-</table>
+<p>
+  <a href="https://github.com/leandroluk/go/actions">
+    <img alt="Build Status" src="https://github.com/leandroluk/go/actions/workflows/ci.yml/badge.svg?branch=main">
+  </a>
+  <a href="https://github.com/leandroluk/go/actions">
+    <img alt="Coverage" src=".public/coverage.svg">
+  </a>
+  <a href="https://github.com/leandroluk/go/releases">
+    <img alt="Release" src="https://img.shields.io/github/release/leandroluk/go.svg?style=flat-square">
+  </a>
+</p>
 
 A collection of high-performance, decoupled, and type-safe Go libraries for modern application development.
 
