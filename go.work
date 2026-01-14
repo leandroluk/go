@@ -7,7 +7,7 @@ use (
 	./meta
 	./oas
 	./search
-	./set
-	./validator
+	./mut
+	./v
 	./tools/coveragebadge
 )
