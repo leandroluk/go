@@ -1,16 +1,23 @@
-package search
+package search_test
 
 import (
 	"encoding/json"
 	"testing"
+
+	"github.com/leandroluk/go/search"
 )
 
 type UserFilter struct {
-	Name StringCondition      `json:"name"`
-	Age  NumberCondition[int] `json:"age"`
+	Name search.StringCondition      `json:"name"`
+	Age  search.NumberCondition[int] `json:"age"`
 }
 
 type UserKeys string
+
+type UserView struct {
+	Name string `json:"name"`
+	Age  int    `json:"age"`
+}
 
 func TestQuery_Unmarshal(t *testing.T) {
 	jsonData := []byte(`{
@@ -19,12 +26,12 @@ func TestQuery_Unmarshal(t *testing.T) {
 		"limit": 10
 	}`)
 
-	var q Query[UserFilter, UserKeys]
+	var q search.Query[UserFilter, UserKeys]
 	if err := json.Unmarshal(jsonData, &q); err != nil {
 		t.Fatalf("Unmarshal failed: %v", err)
 	}
 
-	if q.Where.Name.Like == nil || *q.Where.Name.Like != "Leandro%" {
+	if q.Where == nil || q.Where.Name.Like == nil || *q.Where.Name.Like != "Leandro%" {
 		t.Error("Where clause not unmarshaled correctly")
 	}
 
@@ -32,35 +39,57 @@ func TestQuery_Unmarshal(t *testing.T) {
 		t.Errorf("Expected 2 sort items, got %d", len(q.Sort))
 	}
 
-	if q.Sort[0].Field != "name" || q.Sort[0].Order != ASC {
+	if q.Sort[0].Field != "name" || q.Sort[0].Order != search.ASC {
 		t.Error("First sort item incorrect")
 	}
 }
 
-func TestQuery_Validate(t *testing.T) {
-	type Schema struct {
-		FullName string `json:"full_name"`
-	}
-
-	t.Run("Valid projection", func(t *testing.T) {
-		q := Query[Schema, string]{
-			Project: &Project[string]{
-				Fields: []string{"full_name"},
+func TestQuery_ValidateAgainst(t *testing.T) {
+	t.Run("Valid projection/sort against view", func(t *testing.T) {
+		limit := 10
+		q := search.Query[UserFilter, UserKeys]{
+			Project: &search.Project[UserKeys]{
+				Mode:   search.INCLUDE,
+				Fields: []UserKeys{"name"},
 			},
+			Sort: []search.SortItem[UserKeys]{
+				{Field: "age", Order: search.DESC},
+			},
+			Limit: &limit,
 		}
-		if err := q.Validate(); err != nil {
+		if err := q.ValidateAgainst(UserView{}); err != nil {
 			t.Errorf("Should be valid: %v", err)
 		}
 	})
 
-	t.Run("Invalid projection", func(t *testing.T) {
-		q := Query[Schema, string]{
-			Project: &Project[string]{
-				Fields: []string{"password"},
+	t.Run("Invalid projection field", func(t *testing.T) {
+		q := search.Query[UserFilter, UserKeys]{
+			Project: &search.Project[UserKeys]{
+				Mode:   search.INCLUDE,
+				Fields: []UserKeys{"password"},
 			},
 		}
-		if err := q.Validate(); err == nil {
+		if err := q.ValidateAgainst(UserView{}); err == nil {
 			t.Error("Should have failed for invalid field 'password'")
+		}
+	})
+
+	t.Run("Invalid sort field", func(t *testing.T) {
+		q := search.Query[UserFilter, UserKeys]{
+			Sort: []search.SortItem[UserKeys]{
+				{Field: "password", Order: search.ASC},
+			},
+		}
+		if err := q.ValidateAgainst(UserView{}); err == nil {
+			t.Error("Should have failed for invalid sort field 'password'")
+		}
+	})
+
+	t.Run("Invalid limit/offset", func(t *testing.T) {
+		limit := -1
+		q := search.Query[UserFilter, UserKeys]{Limit: &limit}
+		if err := q.ValidateAgainst(UserView{}); err == nil {
+			t.Error("Should have failed for negative limit")
 		}
 	})
 }

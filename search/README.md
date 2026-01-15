@@ -1,12 +1,12 @@
 # Package Search
 
-A powerful generic query builder for Go 1.25+ designed to handle dynamic filtering, sorting, and projection through JSON.
+A generic query builder for Go 1.25+ designed to handle dynamic filtering, sorting, and projection through JSON.
 
 ## Features
 
 - **Type-Safe Filters**: Specialized conditions for `String`, `Number`, `Boolean`, and `Date`.
 - **Custom Sort Unmarshaling**: Supports JSON object syntax for sorting (`{"field": 1}`) while maintaining order internally.
-- **Projection Validation**: Validates if requested fields exist in the target struct's JSON tags.
+- **Projection Validation**: Validates if requested projection/sort fields exist in the target struct's JSON tags.
 - **Generics**: Works with any filter struct and field key constraint.
 
 ## Usage
@@ -15,7 +15,7 @@ A powerful generic query builder for Go 1.25+ designed to handle dynamic filteri
 
 ```go
 type UserFilter struct {
-    Name search.StringCondition `json:"name"`
+    Name search.StringCondition      `json:"name"`
     Age  search.NumberCondition[int] `json:"age"`
 }
 
@@ -36,11 +36,26 @@ var q search.Query[UserFilter, UserKeys]
 json.Unmarshal(jsonData, &q)
 ```
 
-### 3. Validate Projection
+### 3. Validate Projection and Sort
+
+If your filter shape matches the returned item shape, you can call:
 
 ```go
 if err := q.Validate(); err != nil {
-    log.Fatal("User requested invalid fields")
+    log.Fatal(err)
+}
+```
+
+If you want to validate against a different struct (recommended for read models/views), use:
+
+```go
+type UserView struct {
+    Name string `json:"name"`
+    Age  int    `json:"age"`
+}
+
+if err := q.ValidateAgainst[UserView](); err != nil {
+    log.Fatal(err)
 }
 ```
 

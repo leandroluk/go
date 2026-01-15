@@ -1,10 +1,10 @@
+// search/query.go
 package search
 
 import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
 	"reflect"
 	"strings"
 )
@@ -14,8 +14,8 @@ type FieldConstraint interface{ ~string }
 type ProjectMode string
 
 const (
-	Include ProjectMode = "include"
-	Exclude ProjectMode = "exclude"
+	INCLUDE ProjectMode = "include"
+	EXCLUDE ProjectMode = "exclude"
 )
 
 type Project[K FieldConstraint] struct {
@@ -35,7 +35,6 @@ type SortItem[K FieldConstraint] struct {
 	Order SortOrder `json:"order"`
 }
 
-// Query is the main structure for dynamic searches.
 type Query[TType any, KeyList FieldConstraint] struct {
 	Where   *TType              `json:"where,omitempty"`
 	Project *Project[KeyList]   `json:"project,omitempty"`
@@ -44,15 +43,9 @@ type Query[TType any, KeyList FieldConstraint] struct {
 	Offset  *int                `json:"offset,omitempty"`
 }
 
-// UnmarshalJSON implements custom logic to handle sort as an object in JSON
-// but as a slice of SortItem internally to preserve order.
 func (q *Query[TType, KeyList]) UnmarshalJSON(data []byte) error {
-	// 1. Create an Alias to avoid infinite recursion during Unmarshal
 	type Alias Query[TType, KeyList]
 
-	// 2. In the auxiliary struct, define Sort as json.RawMessage.
-	// This allows the default unmarshaler to accept the {} object without attempting
-	// to convert it to a slice yet, avoiding a type mismatch error.
 	aux := &struct {
 		*Alias
 		Sort json.RawMessage `json:"sort,omitempty"`
@@ -62,72 +55,111 @@ func (q *Query[TType, KeyList]) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	// 3. Now process the "sort" field manually using the token scanner
-	// to preserve the order of the JSON object keys.
-	dec := json.NewDecoder(bytes.NewReader(data))
-	for {
-		t, err := dec.Token()
-		if err == io.EOF {
-			break
+	if len(aux.Sort) == 0 {
+		return nil
+	}
+
+	first := firstNonSpaceByte(aux.Sort)
+	if first == 0 {
+		return nil
+	}
+
+	if first == '[' {
+		var items []SortItem[KeyList]
+		if err := json.Unmarshal(aux.Sort, &items); err != nil {
+			return err
 		}
+		q.Sort = items
+		return nil
+	}
+
+	if first != '{' {
+		return fmt.Errorf("invalid sort json: expected object or array")
+	}
+
+	dec := json.NewDecoder(bytes.NewReader(aux.Sort))
+
+	tok, err := dec.Token()
+	if err != nil {
+		return err
+	}
+	if tok != json.Delim('{') {
+		return fmt.Errorf("invalid sort json: expected object")
+	}
+
+	q.Sort = nil
+
+	for dec.More() {
+		keyToken, err := dec.Token()
 		if err != nil {
 			return err
 		}
 
-		if t == "sort" {
-			t, err = dec.Token() // Expected: json.Delim '{'
-			if err != nil || t != json.Delim('{') {
-				break
-			}
-
-			// Clear the slice if the default unmarshal populated it (unlikely here)
-			q.Sort = nil
-
-			for dec.More() {
-				key, err := dec.Token()
-				if err != nil {
-					return err
-				}
-
-				var order SortOrder
-				if err := dec.Decode(&order); err != nil {
-					return err
-				}
-
-				q.Sort = append(q.Sort, SortItem[KeyList]{
-					Field: KeyList(key.(string)),
-					Order: order,
-				})
-			}
-			break
+		key, ok := keyToken.(string)
+		if !ok {
+			return fmt.Errorf("invalid sort json: expected string key")
 		}
+
+		var order SortOrder
+		if err := dec.Decode(&order); err != nil {
+			return err
+		}
+
+		q.Sort = append(q.Sort, SortItem[KeyList]{
+			Field: KeyList(key),
+			Order: order,
+		})
 	}
 
 	return nil
 }
 
-// Validate checks if the projection fields exist in the TType struct tags.
 func (q *Query[TType, KeyList]) Validate() error {
-	if q.Project == nil || len(q.Project.Fields) == 0 {
-		return nil
+	return q.validateAgainstType(reflect.TypeFor[TType]())
+}
+
+func (q *Query[TType, KeyList]) ValidateAgainst(target any) error {
+	if target == nil {
+		return fmt.Errorf("target type is nil")
+	}
+	return q.validateAgainstType(reflect.TypeOf(target))
+}
+
+func (q *Query[TType, KeyList]) validateAgainstType(targetType reflect.Type) error {
+	targetType = unwrapPointer(targetType)
+
+	if q.Limit != nil && *q.Limit < 0 {
+		return fmt.Errorf("invalid limit: %d", *q.Limit)
+	}
+	if q.Offset != nil && *q.Offset < 0 {
+		return fmt.Errorf("invalid offset: %d", *q.Offset)
 	}
 
-	validFields := make(map[string]bool)
-	typ := reflect.TypeFor[TType]()
-
-	for i := 0; i < typ.NumField(); i++ {
-		tag := typ.Field(i).Tag.Get("json")
-		fieldName := strings.Split(tag, ",")[0]
-		if fieldName != "" && fieldName != "-" {
-			validFields[fieldName] = true
+	if q.Project != nil {
+		if q.Project.Mode != INCLUDE && q.Project.Mode != EXCLUDE {
+			return fmt.Errorf("invalid project mode: %s", q.Project.Mode)
 		}
 	}
 
-	for _, field := range q.Project.Fields {
-		if !validFields[string(field)] {
-			return fmt.Errorf("invalid projection field: %s", field)
+	jsonFields := collectJSONFields(targetType)
+
+	if q.Project != nil && len(q.Project.Fields) > 0 {
+		for _, field := range q.Project.Fields {
+			if !jsonFields[string(field)] {
+				return fmt.Errorf("invalid projection field: %s", field)
+			}
 		}
 	}
+
+	for _, item := range q.Sort {
+		if item.Order != ASC && item.Order != DESC {
+			return fmt.Errorf("invalid sort order for field %s: %d", item.Field, item.Order)
+		}
+		if !jsonFields[string(item.Field)] {
+			return fmt.Errorf("invalid sort field: %s", item.Field)
+		}
+	}
+
 	return nil
 }
 
@@ -136,4 +168,54 @@ type Result[TType any] struct {
 	Total  int     `json:"total"`
 	Offset int     `json:"offset"`
 	Limit  int     `json:"limit"`
+}
+
+func firstNonSpaceByte(b []byte) byte {
+	for _, c := range b {
+		if c == ' ' || c == '\n' || c == '\r' || c == '\t' {
+			continue
+		}
+		return c
+	}
+	return 0
+}
+
+func unwrapPointer(t reflect.Type) reflect.Type {
+	for t != nil && t.Kind() == reflect.Pointer {
+		t = t.Elem()
+	}
+	return t
+}
+
+func collectJSONFields(t reflect.Type) map[string]bool {
+	fields := make(map[string]bool)
+	collectJSONFieldsInto(fields, t)
+	return fields
+}
+
+func collectJSONFieldsInto(out map[string]bool, t reflect.Type) {
+	t = unwrapPointer(t)
+	if t == nil || t.Kind() != reflect.Struct {
+		return
+	}
+
+	for i := 0; i < t.NumField(); i++ {
+		f := t.Field(i)
+
+		if f.Anonymous {
+			collectJSONFieldsInto(out, f.Type)
+		}
+
+		tag := f.Tag.Get("json")
+		if tag == "" {
+			continue
+		}
+
+		name := strings.Split(tag, ",")[0]
+		if name == "" || name == "-" {
+			continue
+		}
+
+		out[name] = true
+	}
 }
