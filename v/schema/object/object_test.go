@@ -2,6 +2,7 @@
 package object_test
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/leandroluk/go/v/internal/ast"
@@ -56,9 +57,8 @@ func TestObject_TypeMismatchMeta(t *testing.T) {
 func TestObject_StructOnly_DoesNotValidateFieldsOrFieldConditions(t *testing.T) {
 	s := object.New(func(target *Sample, schemaValue *object.Schema[Sample]) {
 		schemaValue.
-			Field(&target.Name, func(context *engine.Context, value any) (any, bool) {
-				stop := context.AddIssue("field.validator", "should not run")
-				return "", stop
+			Field(&target.Name, func(context *engine.Context, value any) (any, error) {
+				return "", fmt.Errorf("should not run")
 			}).
 			RequiredIf("other", rule.OpPresent, nil)
 	}).StructOnly()
@@ -81,15 +81,15 @@ func TestObject_StructOnly_DoesNotValidateFieldsOrFieldConditions(t *testing.T) 
 
 func TestObject_NoStructLevel_ValidatesFieldsButSkipsObjectRules(t *testing.T) {
 	s := object.New(func(target *Sample, schemaValue *object.Schema[Sample]) {
-		schemaValue.Field(&target.Name, func(context *engine.Context, value any) (any, bool) {
+		schemaValue.Field(&target.Name, func(context *engine.Context, value any) (any, error) {
 			v := value.(ast.Value)
 
 			if v.Kind != ast.KindString {
-				stop := context.AddIssue("field.validator", "invalid")
-				return "", stop
+				return "", fmt.Errorf("invalid")
 			}
-			return v.String, false
+			return v.String, nil
 		})
+
 		schemaValue.Custom(func(value Sample, reporter ruleset.Reporter) bool {
 			return reporter.AddIssue("struct.rule", "should not run")
 		})
@@ -107,8 +107,8 @@ func TestObject_NoStructLevel_ValidatesFieldsButSkipsObjectRules(t *testing.T) {
 	}))
 	validationError := testkit.RequireValidationError(t, err)
 
-	if validationError.Issues[0].Code != "field.validator" {
-		t.Fatalf("expected code %q, got %q", "field.validator", validationError.Issues[0].Code)
+	if validationError.Issues[0].Code != object.CodeFieldDecode {
+		t.Fatalf("expected code %q, got %q", object.CodeFieldDecode, validationError.Issues[0].Code)
 	}
 }
 
@@ -120,14 +120,13 @@ type Cross struct {
 func TestObject_RequiredIf_DeepPathWithArrayIndex(t *testing.T) {
 	s := object.New(func(target *Sample, schemaValue *object.Schema[Sample]) {
 		schemaValue.
-			Field(&target.Name, func(context *engine.Context, value any) (any, bool) {
+			Field(&target.Name, func(context *engine.Context, value any) (any, error) {
 				v := value.(ast.Value)
 
 				if v.Kind != ast.KindString {
-					stop := context.AddIssue("field.type", "invalid")
-					return "", stop
+					return "", fmt.Errorf("invalid")
 				}
-				return v.String, false
+				return v.String, nil
 			}).
 			RequiredIf("meta.items[0].flag", rule.OpEq, true)
 	})
@@ -246,10 +245,9 @@ func TestObject_SkipUnless_SkipsFieldValidationWhenNotMet(t *testing.T) {
 
 	s := object.New(func(target *SkipUnless, schemaValue *object.Schema[SkipUnless]) {
 		schemaValue.
-			Field(&target.A, func(context *engine.Context, value any) (any, bool) {
+			Field(&target.A, func(context *engine.Context, value any) (any, error) {
 				called = true
-				stop := context.AddIssue("should.not.run", "boom")
-				return "", stop
+				return "", fmt.Errorf("boom")
 			}).
 			SkipUnless("flag", rule.OpEq, true)
 

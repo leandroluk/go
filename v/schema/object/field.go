@@ -25,11 +25,11 @@ type field[T any] struct {
 
 	comparators []rule.Comparator
 
-	validate func(context *engine.Context, value any) (any, bool)
+	validate func(context *engine.Context, value any) (any, error)
 	assign   func(outputPointer unsafe.Pointer, value any)
 }
 
-func newField[T any](structPointer *T, fieldPointer any, validator func(context *engine.Context, value any) (any, bool)) (field[T], error) {
+func newField[T any](structPointer *T, fieldPointer any, validator func(context *engine.Context, value any) (any, error)) (field[T], error) {
 	if structPointer == nil {
 		return field[T]{}, fmt.Errorf("nil target")
 	}
@@ -83,32 +83,28 @@ func newField[T any](structPointer *T, fieldPointer any, validator func(context 
 
 	fieldType := matched.Type
 
-	validateFn := func(context *engine.Context, value any) (any, bool) {
+	validateFn := func(context *engine.Context, value any) (any, error) {
 		if validator != nil {
 			return validator(context, value)
 		}
 
 		astValue, ok := value.(ast.Value)
 		if ok {
-			return decodeFallback(context, astValue, fieldType)
+			return decodeFallback(astValue, fieldType)
 		}
-
 		astValuePointer, ok := value.(*ast.Value)
 		if ok {
 			if astValuePointer == nil {
-				return decodeFallback(context, ast.NullValue(), fieldType)
+				return decodeFallback(ast.NullValue(), fieldType)
 			}
-			return decodeFallback(context, *astValuePointer, fieldType)
+			return decodeFallback(*astValuePointer, fieldType)
 		}
 
-		astValue, err := engine.InputToASTWithOptions(value, context.Options)
+		coerced, err := engine.InputToASTWithOptions(value, context.Options)
 		if err != nil {
-			stop := context.AddIssueWithMeta(CodeFieldDecode, "invalid field", map[string]any{
-				"error": err.Error(),
-			})
-			return reflect.Zero(fieldType).Interface(), stop
+			return reflect.Zero(fieldType).Interface(), err
 		}
-		return decodeFallback(context, astValue, fieldType)
+		return decodeFallback(coerced, fieldType)
 	}
 
 	assignFn := func(outputPointer unsafe.Pointer, value any) {
@@ -178,20 +174,17 @@ func jsonName(field reflect.StructField) string {
 	return name
 }
 
-func decodeFallback(context *engine.Context, value ast.Value, fieldType reflect.Type) (any, bool) {
+func decodeFallback(value ast.Value, fieldType reflect.Type) (any, error) {
 	if value.IsMissing() || value.IsNull() {
-		return reflect.Zero(fieldType).Interface(), false
+		return reflect.Zero(fieldType).Interface(), nil
 	}
 
 	outPointer := reflect.New(fieldType)
 	if err := codec.DecodeInto(value, outPointer.Interface()); err != nil {
-		stop := context.AddIssueWithMeta(CodeFieldDecode, "invalid field", map[string]any{
-			"error": err.Error(),
-		})
-		return reflect.Zero(fieldType).Interface(), stop
+		return reflect.Zero(fieldType).Interface(), err
 	}
 
-	return outPointer.Elem().Interface(), false
+	return outPointer.Elem().Interface(), nil
 }
 
 func anyToASTValue(expected any) (ast.Value, bool) {

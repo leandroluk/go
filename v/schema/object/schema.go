@@ -83,7 +83,7 @@ func (s *Schema[T]) Custom(ruleValue ruleset.RuleFn[T]) *Schema[T] {
 	return s
 }
 
-func (s *Schema[T]) Field(fieldPointer any, validator func(context *engine.Context, value any) (any, bool)) *Schema[T] {
+func (s *Schema[T]) Field(fieldPointer any, validator func(context *engine.Context, value any) (any, error)) *Schema[T] {
 	if s == nil {
 		return s
 	}

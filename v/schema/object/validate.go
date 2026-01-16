@@ -106,13 +106,23 @@ func (s *Schema[T]) validateAST(context *engine.Context, value ast.Value) (T, bo
 			return output, true
 		}
 
-		fieldValue, fieldStop := compiledField.validate(context, child)
+		fieldValue, fieldError := compiledField.validate(context, child)
+		if fieldError != nil {
+			stop := context.AddIssueWithMeta(CodeFieldDecode, "invalid field", map[string]any{
+				"error": fieldError.Error(),
+			})
+
+			compiledField.assign(outputPointer, reflect.Zero(compiledField.fieldType).Interface())
+			context.Pop()
+
+			if stop {
+				return output, true
+			}
+			continue
+		}
+
 		compiledField.assign(outputPointer, fieldValue)
 		context.Pop()
-
-		if fieldStop {
-			return output, true
-		}
 	}
 
 	if !s.noStructLevel && len(s.rules) > 0 {
