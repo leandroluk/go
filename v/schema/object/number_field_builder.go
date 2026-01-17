@@ -239,6 +239,98 @@ func (b *NumberFieldBuilder[T]) Build() *Schema[T] {
 	return b.schema
 }
 
+// Transform registers a transformation function for the field.
+// It validates the value as a Number first, then applies the transformation.
+// The returned value is used as the new value for the field.
+func (b *NumberFieldBuilder[T]) Transform(fn func(value any) (any, error)) *Schema[T] {
+	// Replicates build() logic but wraps final generation.
+	// Since build() is complex for NumberFieldBuilder (coercion, ranges, etc.), we should REUSE the logic if possible.
+	// But build() logic is embedded in the closure `validator`.
+
+	// We can refactor build() to return the validator closure?
+	// Or we just duplicate the logic here for SAFETY and ensure it follows the same steps.
+	// Duplication is risky for maintenance.
+	// Better: Extract the validation logic into a private method `createValidator()`?
+
+	// However, extracting now might be too much refactoring.
+	// Let's implement it by creating a new validator that replicates the checks.
+
+	fieldType := b.fieldInfo.fieldType
+	minSet := b.minSet
+	maxSet := b.maxSet
+	minValue := b.minValue
+	maxValue := b.maxValue
+	required := b.required
+
+	validator := func(ctx *engine.Context, value any) (any, error) {
+		astVal, ok := value.(ast.Value)
+		if !ok {
+			coerced, err := engine.InputToASTWithOptions(value, ctx.Options)
+			if err != nil {
+				return nil, err
+			}
+			astVal = coerced
+		}
+
+		if astVal.IsMissing() || astVal.IsNull() {
+			if required {
+				ctx.AddIssue("number.required", "required")
+				return nil, ctx.Error()
+			}
+			// If missing/null and optional, do we transform?
+			// Usually we don't. We return zero value.
+			// If user wants to transform zero value, they can use Defaults.
+			return reflect.Zero(fieldType).Interface(), nil
+		}
+
+		if astVal.Kind != ast.KindNumber {
+			ctx.AddIssueWithMeta("number.type", "expected number", map[string]any{
+				"expected": "number",
+				"actual":   astVal.Kind.String(),
+			})
+			return nil, ctx.Error()
+		}
+
+		floatVal, err := strconv.ParseFloat(astVal.Number, 64)
+		if err != nil {
+			ctx.AddIssueWithMeta("number.parse", "invalid number", map[string]any{"error": err.Error()})
+			return nil, ctx.Error()
+		}
+
+		if minSet && floatVal < minValue {
+			ctx.AddIssueWithMeta("number.min", "too small", map[string]any{"min": minValue, "actual": floatVal})
+			return nil, ctx.Error()
+		}
+
+		if maxSet && floatVal > maxValue {
+			ctx.AddIssueWithMeta("number.max", "too large", map[string]any{"max": maxValue, "actual": floatVal})
+			return nil, ctx.Error()
+		}
+
+		result := convertToFieldType(floatVal, fieldType)
+
+		// TRANSFORM HERE
+		return fn(result)
+	}
+
+	compiled, err := newFieldFromInfo(b.fieldInfo, validator)
+	if err != nil {
+		b.schema.buildError = err
+		return b.schema
+	}
+	compiled.required = b.required
+
+	if b.fieldIndex == -1 {
+		b.schema.fields = append(b.schema.fields, compiled)
+		b.schema.lastFieldIndex = len(b.schema.fields) - 1
+	} else {
+		b.schema.fields[b.fieldIndex] = compiled
+		b.schema.lastFieldIndex = b.fieldIndex
+	}
+
+	return b.schema
+}
+
 func convertToFieldType(floatVal float64, fieldType reflect.Type) any {
 	switch fieldType.Kind() {
 	case reflect.Int:

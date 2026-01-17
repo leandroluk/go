@@ -179,6 +179,17 @@ func (fb *FieldBuilder[T]) Record(items ...schema.AnySchema) *RecordFieldBuilder
 	return b
 }
 
+// Transform registers a transformation function for the field.
+// It ignores the context issues unless the function returns an error.
+// The returned value is used as the new value for the field.
+func (fb *FieldBuilder[T]) Transform(fn func(value any) (any, error)) *Schema[T] {
+	return fb.Custom(func(ctx *engine.Context, value any) (any, error) {
+		return fn(value)
+	})
+}
+
+// Custom registers a custom validator/transformer for the field.
+// It allows full access to the validation context.
 func (fb *FieldBuilder[T]) Custom(validator func(ctx *engine.Context, value any) (any, error)) *Schema[T] {
 	if fb.schema.buildError != nil {
 		return fb.schema

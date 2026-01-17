@@ -247,4 +247,64 @@ func (b *TextFieldBuilder[T]) Build() *Schema[T] {
 	return b.schema
 }
 
+// Transform registers a transformation function for the field.
+// It validates the value as Text first, then applies the transformation.
+// The returned value is used as the new value for the field.
+func (b *TextFieldBuilder[T]) Transform(fn func(value any) (any, error)) *Schema[T] {
+	b.build() // Ensure any previous mutations on textSchema are applied?
+	// Actually build() registers the field. If we call Transform, we are overtaking the registration.
+	// We need to NOT call build() separately if we use Custom logic, OR we need to use a custom validator that uses textSchema.
+
+	// The current b.build() creates a validator and appends to fields.
+	// We want to create a NEW validator that uses b.textSchema + fn, and register THAT.
+
+	validator := func(ctx *engine.Context, value any) (any, error) {
+		if b.required {
+			astVal, ok := value.(ast.Value)
+			if ok && (astVal.IsMissing() || astVal.IsNull()) {
+				ctx.AddIssue("text.required", "required")
+				return nil, ctx.Error()
+			}
+		}
+
+		// 1. Validate as Text
+		// We use b.textSchema directly.
+		out, err := b.textSchema.ValidateAny(value, ctx.Options)
+		if err != nil {
+			return nil, err
+		}
+		// If textSchema returned nil (soft failure or optional), we might skip transform?
+		// But ValidateAny usually returns value if success.
+
+		// 2. Transform
+		return fn(out)
+	}
+
+	compiled, err := newFieldFromInfo(b.fieldInfo, validator)
+	if err != nil {
+		b.schema.buildError = err
+		return b.schema
+	}
+	compiled.required = b.required
+
+	// Overwrite or Append?
+	// If b.fieldIndex == -1, we append.
+	// BUT b.build() might have been called by previous methods if they were fluent?
+	// In the current design, every method like Min() calls build().
+	// So the field is ALREADY registered.
+	// We need to UPDATE it.
+
+	if b.fieldIndex == -1 {
+		// Should not happen if we are chained from Text() which calls build().
+		// But safe to handle.
+		b.schema.fields = append(b.schema.fields, compiled)
+		b.schema.lastFieldIndex = len(b.schema.fields) - 1
+	} else {
+		b.schema.fields[b.fieldIndex] = compiled
+		b.schema.lastFieldIndex = b.fieldIndex
+	}
+
+	return b.schema
+}
+
 var _ ast.Value

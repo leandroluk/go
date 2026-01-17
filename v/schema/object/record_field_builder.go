@@ -178,3 +178,35 @@ func (b *RecordFieldBuilder[T]) build() *RecordFieldBuilder[T] {
 
 	return b
 }
+
+// Transform registers a transformation function for the field.
+// It validates the value as a Record first, then applies the transformation.
+// The returned value is used as the new value for the field.
+func (b *RecordFieldBuilder[T]) Transform(fn func(value any) (any, error)) *Schema[T] {
+	// Ensure standard validation is built and registered
+	b.build()
+
+	// Grab the registered field
+	idx := b.fieldIndex
+	if idx < 0 || idx >= len(b.schema.fields) {
+		// Should not happen if build works
+		return b.schema
+	}
+
+	currentField := b.schema.fields[idx]
+	originalValidator := currentField.validate
+
+	newValidator := func(ctx *engine.Context, value any) (any, error) {
+		out, err := originalValidator(ctx, value)
+		if err != nil {
+			return nil, err
+		}
+
+		return fn(out)
+	}
+
+	// Update the field with new validator
+	b.schema.fields[idx].validate = newValidator
+
+	return b.schema
+}

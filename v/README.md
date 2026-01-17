@@ -136,6 +136,23 @@ Flags for specific behavior:
 - **Object**: `Field`, `StructOnly`, `NoStructLevel`...
 - **Record**: `Min/Max` (keys), `Key(Schema)`, `Value(Schema)`...
 
+### Transformation
+Use `.Transform` to parse or convert values safely during the validation pass.
+
+```go
+s.Field(&t.Algorithm).Transform(func(val any) (any, error) {
+    str, ok := val.(string)
+    if !ok {
+        return nil, errors.New("expected string")
+    }
+    // Mapping string to internal Enum/Type
+    if method, ok := myMap[str]; ok {
+        return method, nil
+    }
+    return nil, errors.New("unknown algorithm")
+})
+```
+
 ## Error Handling
 
 Errors are returned as `v.ValidationError`, which contains a list of issues.
@@ -146,7 +163,7 @@ Each issue has:
 
 ## Documentation
 
-- Migration from `go-playground/validator`: [`docs/migration-go-playground-validator.md`](docs/migration-go-playground-validator.md)
+- Migration from `go-playground/validator`: [`docs/migration-go-playground.md`](docs/migration-go-playground.md)
 - Migration from `ozzo-validation`: [`docs/migration-ozzo-validator.md`](docs/migration-ozzo-validator.md)
 - Migration from `asaskevich/govalidator`: [`docs/migration-asaskevich-govalidator.md`](docs/migration-asaskevich-govalidator.md)
 - Schema reference: [`docs/schemas.md`](docs/schemas.md)

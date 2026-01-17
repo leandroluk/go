@@ -192,3 +192,42 @@ func (b *DurationFieldBuilder[T]) Build() *Schema[T] {
 	b.build()
 	return b.schema
 }
+
+// Transform registers a transformation function for the field.
+// It validates the value as a Duration first, then applies the transformation.
+// The returned value is used as the new value for the field.
+func (b *DurationFieldBuilder[T]) Transform(fn func(value any) (any, error)) *Schema[T] {
+	validator := func(ctx *engine.Context, value any) (any, error) {
+		if b.required {
+			astVal, ok := value.(ast.Value)
+			if ok && (astVal.IsMissing() || astVal.IsNull()) {
+				ctx.AddIssue("duration.required", "required")
+				return nil, ctx.Error()
+			}
+		}
+
+		out, err := b.durationSchema.ValidateAny(value, ctx.Options)
+		if err != nil {
+			return nil, err
+		}
+
+		return fn(out)
+	}
+
+	compiled, err := newFieldFromInfo(b.fieldInfo, validator)
+	if err != nil {
+		b.schema.buildError = err
+		return b.schema
+	}
+	compiled.required = b.required
+
+	if b.fieldIndex == -1 {
+		b.schema.fields = append(b.schema.fields, compiled)
+		b.schema.lastFieldIndex = len(b.schema.fields) - 1
+	} else {
+		b.schema.fields[b.fieldIndex] = compiled
+		b.schema.lastFieldIndex = b.fieldIndex
+	}
+
+	return b.schema
+}
