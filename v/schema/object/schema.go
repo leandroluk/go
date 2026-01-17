@@ -5,13 +5,21 @@ import (
 	"reflect"
 
 	"github.com/leandroluk/go/v/internal/defaults"
-	"github.com/leandroluk/go/v/internal/engine"
 	"github.com/leandroluk/go/v/internal/ruleset"
 	"github.com/leandroluk/go/v/schema"
 	"github.com/leandroluk/go/v/schema/object/rule"
 )
 
 type ConditionOp = rule.ConditionOp
+
+const (
+	Eq      ConditionOp = rule.OpEq
+	Ne      ConditionOp = rule.OpNeq
+	Present ConditionOp = rule.OpPresent
+	Missing ConditionOp = rule.OpMissing
+	Null    ConditionOp = rule.OpNull
+	NotNull ConditionOp = rule.OpNotNull
+)
 
 type Schema[T any] struct {
 	required bool
@@ -83,27 +91,8 @@ func (s *Schema[T]) Custom(ruleValue ruleset.RuleFn[T]) *Schema[T] {
 	return s
 }
 
-func (s *Schema[T]) Field(fieldPointer any, validator func(context *engine.Context, value any) (any, error)) *Schema[T] {
-	if s == nil {
-		return s
-	}
-	if s.buildError != nil {
-		return s
-	}
-	if s.buildTarget == nil {
-		s.buildError = ErrInvalidBuilderUsage
-		return s
-	}
-
-	compiled, err := newField(s.buildTarget, fieldPointer, validator)
-	if err != nil {
-		s.buildError = err
-		return s
-	}
-
-	s.fields = append(s.fields, compiled)
-	s.lastFieldIndex = len(s.fields) - 1
-	return s
+func (s *Schema[T]) Field(fieldPointer any) *FieldBuilder[T] {
+	return newFieldBuilder(s, fieldPointer)
 }
 
 func (s *Schema[T]) RequiredIf(path string, op ConditionOp, expected any) *Schema[T] {

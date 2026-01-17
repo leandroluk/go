@@ -9,7 +9,7 @@ COVERPROFILE_ALL ?= coverage.out
 WORK_MODULES ?= cqrs di env meta oas search mut v
 WORK_PACKAGES := $(addsuffix /...,$(addprefix ./,$(WORK_MODULES)))
 
-BADGE_TOOL_PKG ?= ./tools/coveragebadge
+BADGE_TOOL_PKG ?= ./_tools/coveragebadge
 
 .DEFAULT_GOAL := help
 

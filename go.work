@@ -9,5 +9,5 @@ use (
 	./search
 	./mut
 	./v
-	./tools/coveragebadge
+	./_tools/coveragebadge
 )

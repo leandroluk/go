@@ -1,40 +1,40 @@
 # Schemas
 
-Referência rápida (com exemplos curtos).
+Quick reference guide with short examples.
 
-## Princípios
-- Por padrão: `missing` e `null` passam (não geram issue).
-- `Required()` força presença.
-- `Default(...)` aplica primeiro.
-- Ordem (alto nível): default → missing/null → parse/coerce/type → constraints → custom.
-- Coerção é **opt-in**: `WithCoerce(true)`.
+## Core Principles
+- **Default**: `missing` and `null` pass (no issue generated) by default.
+- **Required**: `.Required()` enforces presence.
+- **Default Value**: `.Default(...)` applies before validation.
+- **Pipeline**: Default → Check Missing/Null → Parse/Coerce/Type → Constraints → Custom Rules.
+- **Coercion**: Opt-in via `WithCoerce(true)`.
 
 ---
 
-## text
+## Text
 
-Usa `validator.Text()`.
+Uses `v.Text()`.
 
 ### Meta
 - `.Required()`
-- `.IsDefault()` (se a string for zero-value, pula validações — exceto `Required`)
+- `.IsDefault()` (skips validation if string is zero-value/empty, except checks `Required`)
 - `.Default(v)` / `.DefaultFunc(fn)`
 - `.Custom(rule)`
 
-### Tamanho e igualdade
+### Length & Equality
 - `.Len(n)`
 - `.Min(n)` / `.Max(n)`
 - `.Eq(v)` / `.Ne(v)`
 - `.EqIgnoreCase(v)` / `.NeIgnoreCase(v)`
 - `.OneOf(v1, v2, ...)`
 
-### Conteúdo (substring/prefix/suffix)
+### Content (substring/prefix/suffix)
 - `.Contains(v)` / `.Excludes(v)`
 - `.StartsWith(v)` / `.NotStartsWith(v)`
 - `.EndsWith(v)` / `.NotEndsWith(v)`
-- `.Lowercase()` / `.Uppercase()`
+- `.Lowercase()` / `.Uppercase()` (validates case, does not change it unless coerce is used presumably? No, usually validation)
 
-### Regex e formatos “web”
+### Regex & Formats
 - `.Pattern(regex)` / `.PatternRegexp(*regexp.Regexp)`
 - `.Email()`
 - `.URL()`
@@ -42,7 +42,7 @@ Usa `validator.Text()`.
 - `.URI()`
 - `.URNRFC2141()`
 
-### IDs e rede
+### IDs & Network
 - `.UUID()` / `.UUID3()` / `.UUID4()` / `.UUID5()`
 - `.IP()` / `.IPv4()` / `.IPv6()`
 - `.CIDR()`
@@ -50,20 +50,20 @@ Usa `validator.Text()`.
 - `.Hostname()` / `.FQDN()`
 - `.Port()`
 
-### Números e cores (string)
-- `.Numeric()` (só dígitos)
-- `.Number()` (float/exp, sem `NaN/Inf`)
-- `.Hexadecimal()` (aceita `0x`)
+### Numeric Strings & Colors
+- `.Numeric()` (digits only)
+- `.Number()` (float/exp string, disallows `NaN/Inf`)
+- `.Hexadecimal()` (allows `0x`)
 - `.HexColor()` (`#fff` / `#ffffff`)
 - `.RGB()` / `.RGBA()` / `.HSL()` / `.HSLA()` (CSS-like)
 
-### Encoding e charset
+### Encoding
 - `.Base64()`
 - `.Base64URL()` / `.Base64RawURL()`
 - `.DataURI()`
 - `.ASCII()` / `.PrintASCII()` / `.Multibyte()`
 
-### “Fintech/docs”
+### Standards/Docs
 - `.CreditCard()` / `.LuhnChecksum()`
 - `.ISBN()` / `.ISBN10()` / `.ISBN13()`
 - `.ISSN()`
@@ -72,123 +72,125 @@ Usa `validator.Text()`.
 - `.CVE()`
 
 ### Filesystem
-- `.File()` / `.Dir()` (exigem existir)
-- `.FilePath()` / `.DirPath()` (formato; `DirPath` exige separador final quando não existe)
-- `.Image()` (arquivo existente + decode de imagem via stdlib)
+- `.File()` / `.Dir()` (must exist)
+- `.FilePath()` / `.DirPath()` (format check; `DirPath` requires trailing separator if not existing)
+- `.Image()` (must exist + basic image decode check)
 
-### Hash digests
-Aceitam **hex** (tamanho fixo) ou **base64** (tamanho certo).
+### Hash Digests
+validates **hex** (fixed length) or **base64**.
 - `.MD4()` / `.MD5()`
 - `.SHA1()` / `.SHA224()` / `.SHA256()` / `.SHA384()` / `.SHA512()`
 - `.SHA512_224()` / `.SHA512_256()`
 - `.SHA3_224()` / `.SHA3_256()` / `.SHA3_384()` / `.SHA3_512()`
 - `.RIPEMD160()`
-- `.BLAKE2B_256()` / `.BLAKE2B_384()` / `.BLAKE2B_512()`
+- `.BLAKE2B_256()` ...
 - `.BLAKE2S_256()`
 
-### Coerce
-- number/bool → string com `WithCoerce(true)`.
-
-Exemplo rápido:
+### Example
 
 ```go
-s := validator.Text().Required().Email()
-
+s := v.Text().Required().Email()
 out, err := s.Validate("john@example.com")
 ```
 
 ---
 
-## number
+## Number
 
-Usa `validator.NumberSchemaOf[T]()`.
+Uses `v.Number[T]()`.
 
 - `.Required()`
 - `.Min(n)` / `.Max(n)`
+- `.Integer()`
+- `.Positive()` / `.Negative()`
 - `.OneOf(v1, v2, ...)`
 - `.Default(v)` / `.DefaultFunc(fn)`
 - `.Custom(rule)`
-- Coerce base: string → number com `WithCoerce(true)`
-- Flags comuns: trim space, underscore
 
 ```go
-s := validator.NumberSchemaOf[int]().Min(0).Max(130)
+s := v.Number[int]().Min(0).Max(130)
 ```
 
 ---
 
-## boolean
+## Boolean
 
-Usa `validator.Boolean()` (ou equivalente no seu build).
+Uses `v.Boolean()`.
 
 - `.Required()`
-- `.Default(v)` / `.DefaultFunc(fn)`
+- `.True()` / `.False()`
+- `.Default(v)`
 - `.Custom(rule)`
-- Coerce: string / 0 / 1 com `WithCoerce(true)` (conforme regras do schema)
 
 ---
 
-## date
+## Date
 
-Usa `validator.Date()` (ou `DateSchemaOf[time.Time]()` dependendo do seu build).
+Uses `v.Date()`.
 
 - `.Required()`
 - `.Min(t)` / `.Max(t)`
-- `.Default(v)` / `.DefaultFunc(fn)`
+- `.After(t)` / `.Before(t)`
+- `.Default(v)`
 - `.Custom(rule)`
-- Parse usa `WithTimeLocation(...)` e `WithDateLayouts(...)`
+
+Input parsing controlled by `WithTimeLocation(...)` and `WithDateLayouts(...)`.
 
 ---
 
-## duration
+## Duration
 
-Usa `validator.Duration()` (ou equivalente).
+Uses `v.Duration()`.
 
 - `.Required()`
 - `.Min(d)` / `.Max(d)`
-- `.Default(v)` / `.DefaultFunc(fn)`
+- `.Default(v)`
 - `.Custom(rule)`
-- String: `time.ParseDuration`
-- AST number: nanosegundos
-- Go number: seconds/millis só com `WithCoerce(true)` + flags
 
 ---
 
-## array
+## Array
 
-Usa `validator.ArraySchemaOf[T]()`.
-
-- `.Required()`
-- `.Min(n)` / `.Max(n)`
-- `.Default(v)` / `.DefaultFunc(fn)`
-- `.Items(validator)`
-- `.Unique()` / `.UniqueByHash(fn)` / `.UniqueByEqual(fn)`
-- `.Custom(rule)`
-- Coerce: singleton → array com `WithCoerce(true)` (quando suportado)
-
----
-
-## record (map[string]V)
-
-Usa `validator.RecordSchemaOf[V]()`.
+Uses `v.Array[E]()`.
 
 - `.Required()`
-- `.Min(n)` / `.Max(n)`
-- `.Default(v)` / `.DefaultFunc(fn)`
-- `.Keys(schema)` / `.KeysFunc(fn)`
-- `.Values(validator)`
+- `.Min(n)` / `.Max(n)` (length)
+- `.Default(v)`
+- `.Items(schema)` (validates elements)
 - `.Unique()` / `.UniqueByHash(fn)` / `.UniqueByEqual(fn)`
 - `.Custom(rule)`
 
+```go
+// Array of strings, min length 1, max length 5
+s := v.Array[string]().Min(1).Max(5).Items(v.Text().Email())
+```
+
 ---
 
-## object (struct)
+## Record (Map)
 
-Usa `validator.Object(...)`.
+Uses `v.Record[V]()`.
 
 - `.Required()`
-- `.Default(v)` / `.DefaultFunc(fn)`
-- `.Field(&u.X, validator)` (nome via tag json primeiro)
-- Rules no nível do objeto
+- `.Min(n)` / `.Max(n)` (size)
+- `.Default(v)`
+- `.Keys(schema)`
+- `.Values(schema)`
+- `.Custom(rule)`
+
+```go
+// map[string]int
+s := v.Record[int]().Values(v.Number[int]().Positive())
+```
+
+---
+
+## Object (Struct)
+
+Uses `v.Object(func...)`.
+
+- `.Required()`
+- `.Default(v)`
+- `.Field(&u.X).Type()...` (fluent definition)
 - `.StructOnly()` / `.NoStructLevel()`
-- Condicionais cross-field (required/excluded/skip), quando configuradas
+- Custom object-level rules via builder or `Custom(rule)`.

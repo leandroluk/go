@@ -2,11 +2,10 @@
 package object_test
 
 import (
-	"fmt"
+	"encoding/json"
 	"testing"
 
 	"github.com/leandroluk/go/v/internal/ast"
-	"github.com/leandroluk/go/v/internal/engine"
 	"github.com/leandroluk/go/v/internal/ruleset"
 	"github.com/leandroluk/go/v/internal/testkit"
 	"github.com/leandroluk/go/v/schema/object"
@@ -56,10 +55,7 @@ func TestObject_TypeMismatchMeta(t *testing.T) {
 
 func TestObject_StructOnly_DoesNotValidateFieldsOrFieldConditions(t *testing.T) {
 	s := object.New(func(target *Sample, schemaValue *object.Schema[Sample]) {
-		schemaValue.
-			Field(&target.Name, func(context *engine.Context, value any) (any, error) {
-				return "", fmt.Errorf("should not run")
-			}).
+		schemaValue.Field(&target.Name).Text().Required().
 			RequiredIf("other", rule.OpPresent, nil)
 	}).StructOnly()
 
@@ -81,14 +77,7 @@ func TestObject_StructOnly_DoesNotValidateFieldsOrFieldConditions(t *testing.T) 
 
 func TestObject_NoStructLevel_ValidatesFieldsButSkipsObjectRules(t *testing.T) {
 	s := object.New(func(target *Sample, schemaValue *object.Schema[Sample]) {
-		schemaValue.Field(&target.Name, func(context *engine.Context, value any) (any, error) {
-			v := value.(ast.Value)
-
-			if v.Kind != ast.KindString {
-				return "", fmt.Errorf("invalid")
-			}
-			return v.String, nil
-		})
+		schemaValue.Field(&target.Name).Text().Required()
 
 		schemaValue.Custom(func(value Sample, reporter ruleset.Reporter) bool {
 			return reporter.AddIssue("struct.rule", "should not run")
@@ -102,13 +91,11 @@ func TestObject_NoStructLevel_ValidatesFieldsButSkipsObjectRules(t *testing.T) {
 		t.Fatalf("expected nil error, got %v", err)
 	}
 
-	_, err = s.Validate(ast.ObjectValue(map[string]ast.Value{
-		"name": ast.NumberValue("1"),
-	}))
+	_, err = s.Validate(ast.ObjectValue(map[string]ast.Value{}))
 	validationError := testkit.RequireValidationError(t, err)
 
-	if validationError.Issues[0].Code != object.CodeFieldDecode {
-		t.Fatalf("expected code %q, got %q", object.CodeFieldDecode, validationError.Issues[0].Code)
+	if validationError.Issues[0].Code != "text.required" {
+		t.Fatalf("expected code %q, got %q", "text.required", validationError.Issues[0].Code)
 	}
 }
 
@@ -119,15 +106,7 @@ type Cross struct {
 
 func TestObject_RequiredIf_DeepPathWithArrayIndex(t *testing.T) {
 	s := object.New(func(target *Sample, schemaValue *object.Schema[Sample]) {
-		schemaValue.
-			Field(&target.Name, func(context *engine.Context, value any) (any, error) {
-				v := value.(ast.Value)
-
-				if v.Kind != ast.KindString {
-					return "", fmt.Errorf("invalid")
-				}
-				return v.String, nil
-			}).
+		schemaValue.Field(&target.Name).Text().Required().
 			RequiredIf("meta.items[0].flag", rule.OpEq, true)
 	})
 
@@ -153,10 +132,8 @@ func TestObject_RequiredIf_DeepPathWithArrayIndex(t *testing.T) {
 
 func TestObject_RequiredWith_MakesFieldRequiredWhenOtherPresent(t *testing.T) {
 	s := object.New(func(target *Cross, schemaValue *object.Schema[Cross]) {
-		schemaValue.
-			Field(&target.A, nil).
-			RequiredWith("b")
-		schemaValue.Field(&target.B, nil)
+		schemaValue.Field(&target.A).Text().RequiredWith("b")
+		schemaValue.Field(&target.B).Text()
 	})
 
 	_, err := s.Validate(ast.ObjectValue(map[string]ast.Value{
@@ -175,10 +152,8 @@ func TestObject_RequiredWith_MakesFieldRequiredWhenOtherPresent(t *testing.T) {
 
 func TestObject_RequiredWithout_MakesFieldRequiredWhenOtherMissing(t *testing.T) {
 	s := object.New(func(target *Cross, schemaValue *object.Schema[Cross]) {
-		schemaValue.
-			Field(&target.A, nil).
-			RequiredWithout("b")
-		schemaValue.Field(&target.B, nil)
+		schemaValue.Field(&target.A).Text().RequiredWithout("b")
+		schemaValue.Field(&target.B).Text()
 	})
 
 	_, err := s.Validate(ast.ObjectValue(map[string]ast.Value{}))
@@ -207,10 +182,8 @@ type Excluded struct {
 
 func TestObject_ExcludedIf_FailsWhenConditionMetAndFieldPresent(t *testing.T) {
 	s := object.New(func(target *Excluded, schemaValue *object.Schema[Excluded]) {
-		schemaValue.
-			Field(&target.A, nil).
-			ExcludedIf("role", rule.OpEq, "admin")
-		schemaValue.Field(&target.Role, nil)
+		schemaValue.Field(&target.A).Text().ExcludedIf("role", rule.OpEq, "admin")
+		schemaValue.Field(&target.Role).Text()
 	})
 
 	_, err := s.Validate(ast.ObjectValue(map[string]ast.Value{
@@ -241,17 +214,9 @@ type SkipUnless struct {
 }
 
 func TestObject_SkipUnless_SkipsFieldValidationWhenNotMet(t *testing.T) {
-	called := false
-
 	s := object.New(func(target *SkipUnless, schemaValue *object.Schema[SkipUnless]) {
-		schemaValue.
-			Field(&target.A, func(context *engine.Context, value any) (any, error) {
-				called = true
-				return "", fmt.Errorf("boom")
-			}).
-			SkipUnless("flag", rule.OpEq, true)
-
-		schemaValue.Field(&target.Flag, nil)
+		schemaValue.Field(&target.A).Text().Required().SkipUnless("flag", rule.OpEq, true)
+		schemaValue.Field(&target.Flag).Boolean()
 	})
 
 	_, err := s.Validate(ast.ObjectValue(map[string]ast.Value{
@@ -260,9 +225,6 @@ func TestObject_SkipUnless_SkipsFieldValidationWhenNotMet(t *testing.T) {
 	}))
 	if err != nil {
 		t.Fatalf("expected nil error, got %v", err)
-	}
-	if called {
-		t.Fatalf("expected validator not to be called")
 	}
 }
 
@@ -273,8 +235,8 @@ type Numbers struct {
 
 func TestObject_EqField(t *testing.T) {
 	s := object.New(func(target *Numbers, schemaValue *object.Schema[Numbers]) {
-		schemaValue.Field(&target.A, nil).EqField("b")
-		schemaValue.Field(&target.B, nil)
+		schemaValue.Field(&target.A).Number().EqField("b")
+		schemaValue.Field(&target.B).Number()
 	})
 
 	_, err := s.Validate(ast.ObjectValue(map[string]ast.Value{
@@ -302,8 +264,8 @@ func TestObject_EqField(t *testing.T) {
 
 func TestObject_NeField(t *testing.T) {
 	s := object.New(func(target *Numbers, schemaValue *object.Schema[Numbers]) {
-		schemaValue.Field(&target.A, nil).NeField("b")
-		schemaValue.Field(&target.B, nil)
+		schemaValue.Field(&target.A).Number().NeField("b")
+		schemaValue.Field(&target.B).Number()
 	})
 
 	_, err := s.Validate(ast.ObjectValue(map[string]ast.Value{
@@ -327,8 +289,8 @@ func TestObject_NeField(t *testing.T) {
 
 func TestObject_GtGteLtLteField(t *testing.T) {
 	gt := object.New(func(target *Numbers, schemaValue *object.Schema[Numbers]) {
-		schemaValue.Field(&target.A, nil).GtField("b")
-		schemaValue.Field(&target.B, nil)
+		schemaValue.Field(&target.A).Number().GtField("b")
+		schemaValue.Field(&target.B).Number()
 	})
 	_, err := gt.Validate(ast.ObjectValue(map[string]ast.Value{
 		"a": ast.NumberValue("2"),
@@ -346,8 +308,8 @@ func TestObject_GtGteLtLteField(t *testing.T) {
 	}
 
 	gte := object.New(func(target *Numbers, schemaValue *object.Schema[Numbers]) {
-		schemaValue.Field(&target.A, nil).GteField("b")
-		schemaValue.Field(&target.B, nil)
+		schemaValue.Field(&target.A).Number().GteField("b")
+		schemaValue.Field(&target.B).Number()
 	})
 	_, err = gte.Validate(ast.ObjectValue(map[string]ast.Value{
 		"a": ast.NumberValue("2"),
@@ -358,8 +320,8 @@ func TestObject_GtGteLtLteField(t *testing.T) {
 	}
 
 	lt := object.New(func(target *Numbers, schemaValue *object.Schema[Numbers]) {
-		schemaValue.Field(&target.A, nil).LtField("b")
-		schemaValue.Field(&target.B, nil)
+		schemaValue.Field(&target.A).Number().LtField("b")
+		schemaValue.Field(&target.B).Number()
 	})
 	_, err = lt.Validate(ast.ObjectValue(map[string]ast.Value{
 		"a": ast.NumberValue("1"),
@@ -377,8 +339,8 @@ func TestObject_GtGteLtLteField(t *testing.T) {
 	}
 
 	lte := object.New(func(target *Numbers, schemaValue *object.Schema[Numbers]) {
-		schemaValue.Field(&target.A, nil).LteField("b")
-		schemaValue.Field(&target.B, nil)
+		schemaValue.Field(&target.A).Number().LteField("b")
+		schemaValue.Field(&target.B).Number()
 	})
 	_, err = lte.Validate(ast.ObjectValue(map[string]ast.Value{
 		"a": ast.NumberValue("2"),
@@ -395,7 +357,7 @@ type OnlyA struct {
 
 func TestObject_EqCSField(t *testing.T) {
 	s := object.New(func(target *OnlyA, schemaValue *object.Schema[OnlyA]) {
-		schemaValue.Field(&target.A, nil).EqCSField("meta.b")
+		schemaValue.Field(&target.A).Number().EqCSField("meta.b")
 	})
 
 	_, err := s.Validate(ast.ObjectValue(map[string]ast.Value{
@@ -426,8 +388,8 @@ type Texts struct {
 
 func TestObject_FieldContainsAndExcludes(t *testing.T) {
 	contains := object.New(func(target *Texts, schemaValue *object.Schema[Texts]) {
-		schemaValue.Field(&target.A, nil).FieldContains("b")
-		schemaValue.Field(&target.B, nil)
+		schemaValue.Field(&target.A).Text().FieldContains("b")
+		schemaValue.Field(&target.B).Text()
 	})
 
 	_, err := contains.Validate(ast.ObjectValue(map[string]ast.Value{
@@ -447,8 +409,8 @@ func TestObject_FieldContainsAndExcludes(t *testing.T) {
 	}
 
 	excludes := object.New(func(target *Texts, schemaValue *object.Schema[Texts]) {
-		schemaValue.Field(&target.A, nil).FieldExcludes("b")
-		schemaValue.Field(&target.B, nil)
+		schemaValue.Field(&target.A).Text().FieldExcludes("b")
+		schemaValue.Field(&target.B).Text()
 	})
 
 	_, err = excludes.Validate(ast.ObjectValue(map[string]ast.Value{
@@ -465,5 +427,88 @@ func TestObject_FieldContainsAndExcludes(t *testing.T) {
 	}))
 	if testkit.RequireValidationError(t, err).Issues[0].Code != object.CodeFieldExcludes {
 		t.Fatalf("expected code %q", object.CodeFieldExcludes)
+	}
+}
+
+// Testes da API fluente
+type UserFluent struct {
+	Name string `json:"name"`
+	Age  int    `json:"age"`
+}
+
+func TestFieldBuilder_TextSchema(t *testing.T) {
+	s := object.New(func(target *UserFluent, schemaValue *object.Schema[UserFluent]) {
+		schemaValue.Field(&target.Name).Text().Required().Min(3).Max(50)
+	})
+
+	input := json.RawMessage(`{"name": "John"}`)
+	out, err := s.Validate(input)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	if out.Name != "John" {
+		t.Fatalf("expected Name to be 'John', got %q", out.Name)
+	}
+}
+
+func TestFieldBuilder_TextSchema_Validation(t *testing.T) {
+	s := object.New(func(target *UserFluent, schemaValue *object.Schema[UserFluent]) {
+		schemaValue.Field(&target.Name).Text().Required().Min(3)
+	})
+
+	input := json.RawMessage(`{"name": "Jo"}`)
+	_, err := s.Validate(input)
+	if err == nil {
+		t.Fatalf("expected validation error for short name")
+	}
+}
+
+func TestFieldBuilder_NumberSchema(t *testing.T) {
+	s := object.New(func(target *UserFluent, schemaValue *object.Schema[UserFluent]) {
+		schemaValue.Field(&target.Name).Text()
+		schemaValue.Field(&target.Age).Number().Min(0).Max(130)
+	})
+
+	input := json.RawMessage(`{"name": "John", "age": 30}`)
+	out, err := s.Validate(input)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	if out.Age != 30 {
+		t.Fatalf("expected Age to be 30, got %d", out.Age)
+	}
+}
+
+func TestFieldBuilder_NumberSchema_Validation(t *testing.T) {
+	s := object.New(func(target *UserFluent, schemaValue *object.Schema[UserFluent]) {
+		schemaValue.Field(&target.Age).Number().Min(0).Max(130)
+	})
+
+	input := json.RawMessage(`{"age": 150}`)
+	_, err := s.Validate(input)
+	if err == nil {
+		t.Fatalf("expected validation error for age > 130")
+	}
+}
+
+type SimpleBool struct {
+	Active bool `json:"active"`
+}
+
+func TestFieldBuilder_BooleanSchema(t *testing.T) {
+	s := object.New(func(target *SimpleBool, schemaValue *object.Schema[SimpleBool]) {
+		schemaValue.Field(&target.Active).Boolean().Required()
+	})
+
+	input := json.RawMessage(`{"active": true}`)
+	out, err := s.Validate(input)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	if !out.Active {
+		t.Fatalf("expected Active to be true")
 	}
 }

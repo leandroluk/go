@@ -1,172 +1,154 @@
-    # Package v
+# Package v
 
-    **Type-safe** data validation in Go, Zod/Joi style (code-based schemas), with defaults, **opt-in** coercion, errors with **paths**, and support for validating **structs** and **JSON** (`[]byte` / `json.RawMessage`).
+**Type-safe** data validation in Go, Zod/Joi style (code-based schemas), with defaults, **opt-in** coercion, errors with **paths**, and support for validating **structs** and **JSON** (`[]byte` / `json.RawMessage`).
 
-    ## What it does (no magic)
-    - **Code-based schemas**: compose rules using methods (`Text().Min(3)`, etc).
-    - **Single pass**: `Validate` handles default → parse/coerce → validation and returns the final type.
-    - **Presence**: differentiates between `missing` (not provided) and `null` (explicitly null).
-    - **Error paths**: `user.name`, `items[0]`, `meta["a-b"]`.
-    - **FailFast / MaxIssues** via options.
-    - **Ready-to-use common validations** (e.g., `email`, `uuid`, `ip`, `base64`, `semver`, `file/dir/image`, etc).
+## Why v?
 
-    ## Installation
+### 1. AST-Based Validation (Missing vs Null)
+Most Go validators conflate `zero values` (0, "") with `missing values`. `v` builds an Abstract Syntax Tree (AST) of your input first.
+- **Missing**: The field was not present in the input (e.g. JSON key missing).
+- **Null**: The field was present but explicit `null`.
+- **Value**: The field has a value (even if it's 0 or empty string).
 
-    ```bash
-    go get github.com/leandroluk/go/v
-    ```
+This allows you to implement efficient PATCH APIs where "missing" means "don't touch" and "null" means "unset".
 
-    ## Quick Start
+### 2. DDD Friendly (Schema Decoupled from Structs)
+Your domain models (structs) remain pure. No `validate:"required"` tags polluting your entities.
+Validation logic lives in the **Infrastructure** or **Presentation** layer, defined explicitly in Go code.
 
-    ### Primitives
+### 3. Type Safety (Generics + Reflection)
+`v` uses Go generics (`v.Object[User]`) to ensure your schema matches your struct. If you rename a field in the struct but forget the schema, validation might fail or panic fast (depending on configuration), but type reference is safe. Methods like `.Field(&u.Name)` use pointer analysis to link schema rules to struct fields safely.
 
-    ```go
-    package main
+## Installation
 
-    import (
-        "fmt"
+```bash
+go get github.com/leandroluk/go/v
+```
 
-        "github.com/leandroluk/go/v"
-    )
+## Summary
+- [Package v](#package-v)
+  - [Why v?](#why-v)
+    - [1. AST-Based Validation (Missing vs Null)](#1-ast-based-validation-missing-vs-null)
+    - [2. DDD Friendly (Schema Decoupled from Structs)](#2-ddd-friendly-schema-decoupled-from-structs)
+    - [3. Type Safety (Generics + Reflection)](#3-type-safety-generics--reflection)
+  - [Installation](#installation)
+  - [Summary](#summary)
+  - [Quick Start](#quick-start)
+    - [Basic Primitives](#basic-primitives)
+    - [Struct Validation (Fluent API)](#struct-validation-fluent-api)
+  - [Features](#features)
+    - [Defaults \& null](#defaults--null)
+    - [Coercion (Opt-in)](#coercion-opt-in)
+    - [Fluent Builders](#fluent-builders)
+  - [Error Handling](#error-handling)
+  - [Documentation](#documentation)
 
-    func main() {
-        nameSchema := v.Text().
-            Required().
-            Min(3).
-            Max(50)
+## Quick Start
 
-        value, err := nameSchema.Validate("Jo")
-        if err != nil {
-            fmt.Println(err)
-            return
-        }
+### Basic Primitives
 
-        fmt.Println(value)
+```go
+package main
+
+import (
+    "fmt"
+    "github.com/leandroluk/go/v"
+)
+
+func main() {
+    nameSchema := v.Text().Required().Min(3).Max(50)
+    value, err := nameSchema.Validate("John Doe")
+    if err != nil {
+        fmt.Println(err)
+        return
     }
-    ```
+    fmt.Println(value) // "John Doe"
+}
+```
 
-    ### Validate[T] (struct + registry)
+### Struct Validation (Fluent API)
 
-    `Validate[T]` looks up a compatible schema for `T` in the registry.
+```go
+type User struct {
+    Name    string
+    Age     int
+    Tags    []string
+    Address Address
+}
 
-    ```go
-    package main
+type Address struct {
+    City string
+}
 
-    import (
-        "fmt"
+func main() {
+    // Define schema
+    schema := v.Object(func(u *User, s *v.ObjectSchema[User]) {
+        s.Field(&u.Name).Text().Required().Min(3)
+        s.Field(&u.Age).Number().Integer().Min(0).Max(130)
+        
+        // Nested Array
+        s.Field(&u.Tags).Array(v.Text().Min(2)).Max(10)
 
-        "github.com/leandroluk/go/v"
-    )
-
-    type User struct {
-        Name string `json:"name"`
-        Age  int    `json:"age"`
-    }
-
-    func main() {
-        schema := v.Object(func(u *User, s *v.ObjectSchema[User]) {
-            s.Field(&u.Name, func(ctx *v.Context, value any) (any, error) {
-                return v.Text().
-                    Required().
-                    Min(3).
-                    ValidateAny(value, ctx.Options)
-            })
-
-            s.Field(&u.Age, func(ctx *v.Context, value any) (any, error) {
-                return v.NumberSchemaOf[int]().
-                    Min(0).
-                    Max(130).
-                    ValidateAny(value, ctx.Options)
-            })
+        // Nested Object
+        s.Field(&u.Address).Object(func(a *Address, s *v.ObjectSchema[Address]) {
+            s.Field(&a.City).Text().Required()
         })
+    })
 
-        out, err := schema.Validate[User]([]byte(`{"name":"John","age":30}`))
-        if err != nil {
-            fmt.Println(err)
-            return
-        }
-
-        fmt.Printf("%+v\n", out)
+    // Validate
+    jsonInput := []byte(`{
+        "name": "Jane", 
+        "age": 25, 
+        "tags": ["dev", "go"], 
+        "address": {"city": "New York"}
+    }`)
+    
+    user, err := schema.Validate[User](jsonInput)
+    if err != nil {
+        // err is v.ValidationError
+        fmt.Println(err)
     }
-    ```
+    fmt.Printf("%+v\n", user)
+}
+```
 
-    ### Defaults
+## Features
 
-    By default, defaults apply to both `missing` and `null`.  
-    To disable defaults for `null`, use `WithDefaultOnNull(false)`.
+### Defaults & null
+By default, standard values apply to both `missing` and `null`.
+To disable defaults for `null` (allow null to pass as zero value or error): `v.WithDefaultOnNull(false)`.
 
-    ```go
-    ageSchema := v.NumberSchemaOf[int]().
-        Default(18).
-        Min(0).
-        Max(130)
+### Coercion (Opt-in)
+`v` does not coerce types blindly. You must opt-in.
+```go
+v.Number[int]().Validate("123", v.WithCoerce(true)) // 123
+```
+Flags for specific behavior:
+- `WithCoerceTrimSpace(true)`: " 123 " -> 123
+- `WithCoerceNumberUnderscore(true)`: "1_000" -> 1000
 
-    a, _ := ageSchema.Validate(nil)
-    b, _ := ageSchema.Validate(nil, v.WithDefaultOnNull(false))
-    ```
+### Fluent Builders
+- **Text**: `Required`, `Min/MaxLen`, `Pattern`, `Email`, `UUID`...
+- **Number**: `Min/Max`, `Integer`, `Positive`...
+- **Boolean**: `True`, `False`...
+- **Date**: `Min/Max`, `After/Before`...
+- **Array**: `Min/Max` (items), `Unique`, `Items(Schema)`...
+- **Object**: `Field`, `StructOnly`, `NoStructLevel`...
+- **Record**: `Min/Max` (keys), `Key(Schema)`, `Value(Schema)`...
 
-    ### Coerce (opt-in) + flags
+## Error Handling
 
-    `WithCoerce(true)` enables base coercion.  
-    More "aggressive" coercions are only enabled with specific flags.
+Errors are returned as `v.ValidationError`, which contains a list of issues.
+Each issue has:
+- **Path**: `user.address.city` or `tags[0]`
+- **Message**: "required", "too short"
+- **Code**: `text.min`, `object.required`
 
-    Common examples (depend on the schema):
-    - `WithCoerceTrimSpace(true)` (e.g., `" 12 "`).
-    - `WithCoerceNumberUnderscore(true)` (e.g., `"1_000"`).
-    - `WithCoerceDurationSeconds(true)` / `WithCoerceDurationMilliseconds(true)` (e.g., `5` becomes `5s` / `5ms`).
+## Documentation
 
-    ```go
-    n, err := v.NumberSchemaOf[int]().Validate(
-        " 1_000 ",
-        v.WithCoerce(true),
-        v.WithCoerceTrimSpace(true),
-        v.WithCoerceNumberUnderscore(true),
-    )
-    ```
+- Migration from `go-playground/validator`: [`docs/migration-go-playground-validator.md`](docs/migration-go-playground-validator.md)
+- Migration from `ozzo-validation`: [`docs/migration-ozzo-validator.md`](docs/migration-ozzo-validator.md)
+- Migration from `asaskevich/govalidator`: [`docs/migration-asaskevich-govalidator.md`](docs/migration-asaskevich-govalidator.md)
+- Schema reference: [`docs/schemas.md`](docs/schemas.md)
 
-    ### OmitZero (similar to omitempty)
-
-    When `WithOmitZero(true)` is active, "zero" values in structs/maps are omitted during reflected input.
-
-    ```go
-    out, err := v.Validate[User](user, v.WithOmitZero(true))
-    ```
-
-    ## Available Schemas (summary)
-
-    - `text`: required, isDefault, len/min/max, equals, pattern, oneOf, email/url/uri/urn, uuid, ip, base64, semver/cve, filesystem (file/dir/image), hashes etc.
-    - `number`: required, min/max, default, oneOf, coerce(stringNumber + flags)
-    - `boolean`: required, default, coerce(string | 0 / 1)
-    - `date`: required, min/max, default, parse(layouts + location), coerce(optional)
-    - `duration`: required, min/max, default, parse(durationString), number = nanos (AST), Go number = only with seconds/millis flags
-    - `array`: required, min/max, default, items, unique, coerce(singleton)
-    - `record`: required, min/max, default, keys, values, unique
-    - `object`: required, default, fields (resolve pointer + json tag), rules, StructOnly / NoStructLevel, cross-field conditions
-    - `combinator`: `AnyOf`, `OneOf`
-
-    Full list and examples: `docs/schemas.md`.
-
-    ## Options (global)
-
-    - `WithFailFast(bool)`
-    - `WithMaxIssues(int)`
-    - `WithDefaultOnNull(bool)` (default: `true`)
-    - `WithCoerce(bool)`
-    - `WithOmitZero(bool)`
-    - `WithTimeLocation(*time.Location)`
-    - `WithDateLayouts(...string)`
-    - coercion flags (if available in your build): trim space, underscore, unix seconds/millis, etc
-
-    ## Errors
-
-    When validation fails, it returns a `ValidationError` (in `internal/issues`) containing a list of issues:
-
-    - `issue.code` (e.g., `text.min`, `number.type`)
-    - `issue.message` (e.g., `too short`, `expected number`)
-    - `issue.path` (e.g., `user.name`, `items[0]`, `meta["a-b"]`)
-    - `issue.meta` (e.g., `expected`, `actual`, `min`, `max`, `value`, `error`)
-
-    ## Docs
-
-    - Migration from `go-playground/validator` (tags → schema): `docs/migration-go-playground.md`
-    - Schema reference: `docs/schemas.md`
+Full documentation is available via GoDoc and strict typing in your IDE.

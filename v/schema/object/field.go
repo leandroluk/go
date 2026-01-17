@@ -22,6 +22,7 @@ type field[T any] struct {
 	skipUnlessConditions []rule.SkipUnlessCondition
 	excludedConditions   []rule.ExcludedIfCondition
 	requiredConditions   []rule.RequiredCondition
+	required             bool
 
 	comparators []rule.Comparator
 
@@ -142,6 +143,136 @@ func newField[T any](structPointer *T, fieldPointer any, validator func(context 
 		name:      name,
 		offset:    matchedOffset,
 		fieldType: fieldType,
+
+		skipUnlessConditions: make([]rule.SkipUnlessCondition, 0),
+		excludedConditions:   make([]rule.ExcludedIfCondition, 0),
+		requiredConditions:   make([]rule.RequiredCondition, 0),
+		comparators:          make([]rule.Comparator, 0),
+
+		validate: validateFn,
+		assign:   assignFn,
+	}, nil
+}
+
+func resolveFieldInfo[T any](structPointer *T, fieldPointer any) (fieldInfo[T], error) {
+	if structPointer == nil {
+		return fieldInfo[T]{}, fmt.Errorf("nil target")
+	}
+	if fieldPointer == nil {
+		return fieldInfo[T]{}, fmt.Errorf("nil field pointer")
+	}
+
+	structValue := reflect.ValueOf(structPointer)
+	if structValue.Kind() != reflect.Pointer || structValue.Elem().Kind() != reflect.Struct {
+		return fieldInfo[T]{}, fmt.Errorf("target must be pointer to struct")
+	}
+
+	fieldValue := reflect.ValueOf(fieldPointer)
+	if fieldValue.Kind() != reflect.Pointer {
+		return fieldInfo[T]{}, fmt.Errorf("fieldPointer must be a pointer")
+	}
+
+	structType := structValue.Elem().Type()
+
+	base := unsafe.Pointer(structValue.Pointer())
+	fieldAddr := unsafe.Pointer(fieldValue.Pointer())
+
+	var matched reflect.StructField
+	var matchedOffset uintptr
+	found := false
+
+	for i := 0; i < structType.NumField(); i++ {
+		sf := structType.Field(i)
+
+		if sf.Anonymous {
+			continue
+		}
+
+		addr := unsafe.Pointer(uintptr(base) + sf.Offset)
+		if addr == fieldAddr {
+			matched = sf
+			matchedOffset = sf.Offset
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		return fieldInfo[T]{}, fmt.Errorf("failed to resolve field (pointer does not match any direct field)")
+	}
+
+	name := jsonName(matched)
+	if name == "" {
+		return fieldInfo[T]{}, fmt.Errorf("field has empty name (maybe json:\"-\"?)")
+	}
+
+	return fieldInfo[T]{
+		name:      name,
+		offset:    matchedOffset,
+		fieldType: matched.Type,
+	}, nil
+}
+
+func newFieldFromInfo[T any](info fieldInfo[T], validator func(context *engine.Context, value any) (any, error)) (field[T], error) {
+	validateFn := func(context *engine.Context, value any) (any, error) {
+		if validator != nil {
+			return validator(context, value)
+		}
+
+		astValue, ok := value.(ast.Value)
+		if ok {
+			return decodeFallback(astValue, info.fieldType)
+		}
+		astValuePointer, ok := value.(*ast.Value)
+		if ok {
+			if astValuePointer == nil {
+				return decodeFallback(ast.NullValue(), info.fieldType)
+			}
+			return decodeFallback(*astValuePointer, info.fieldType)
+		}
+
+		coerced, err := engine.InputToASTWithOptions(value, context.Options)
+		if err != nil {
+			return reflect.Zero(info.fieldType).Interface(), err
+		}
+		return decodeFallback(coerced, info.fieldType)
+	}
+
+	assignFn := func(outputPointer unsafe.Pointer, value any) {
+		if outputPointer == nil {
+			return
+		}
+
+		target := reflect.NewAt(info.fieldType, unsafe.Pointer(uintptr(outputPointer)+info.offset)).Elem()
+
+		if value == nil {
+			target.Set(reflect.Zero(info.fieldType))
+			return
+		}
+
+		v := reflect.ValueOf(value)
+		if !v.IsValid() {
+			target.Set(reflect.Zero(info.fieldType))
+			return
+		}
+
+		if v.Type().AssignableTo(info.fieldType) {
+			target.Set(v)
+			return
+		}
+
+		if v.Type().ConvertibleTo(info.fieldType) {
+			target.Set(v.Convert(info.fieldType))
+			return
+		}
+
+		target.Set(reflect.Zero(info.fieldType))
+	}
+
+	return field[T]{
+		name:      info.name,
+		offset:    info.offset,
+		fieldType: info.fieldType,
 
 		skipUnlessConditions: make([]rule.SkipUnlessCondition, 0),
 		excludedConditions:   make([]rule.ExcludedIfCondition, 0),

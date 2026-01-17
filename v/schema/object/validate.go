@@ -145,7 +145,8 @@ func (s *Schema[T]) applyFieldPlan(context *engine.Context, root ast.Value, fiel
 	if len(fieldValue.skipUnlessConditions) == 0 &&
 		len(fieldValue.excludedConditions) == 0 &&
 		len(fieldValue.requiredConditions) == 0 &&
-		len(fieldValue.comparators) == 0 {
+		len(fieldValue.comparators) == 0 &&
+		!fieldValue.required {
 		if child.IsMissing() || child.IsNull() {
 			return fieldActionSkip, false
 		}
@@ -176,7 +177,7 @@ func (s *Schema[T]) applyFieldPlan(context *engine.Context, root ast.Value, fiel
 		}
 	}
 
-	if !childPresent {
+	if !childPresent && !fieldValue.required {
 		return fieldActionSkip, false
 	}
 

@@ -14,7 +14,6 @@ A collection of high-performance, decoupled, and type-safe Go libraries for mode
   - [Getting started](#getting-started)
     - [Run tests across all modules](#run-tests-across-all-modules)
   - [Modules](#modules)
-  - [Project structure](#project-structure)
   - [Philosophy](#philosophy)
   - [Contributing](#contributing)
   - [License](#license)
@@ -41,23 +40,6 @@ make test
 | [**oas**](./oas)       | OpenAPI (Swagger) builder for complex filtering, sorting, and pagination.    |    [![coverage](.public/oas-coverage.svg)](./oas)    |
 | [**search**](./search) | Generic query builder for complex filtering, sorting, and pagination.        | [![coverage](.public/search-coverage.svg)](./search) |
 | [**v**](./v)           | Generic validator for complex filtering, sorting, and pagination.            |      [![coverage](.public/v-coverage.svg)](./v)      |
-
-## Project structure
-
-```text
-.
-├── .public/         # generated coverage badges (svg)
-├── cqrs/            # CQRS Mediator Module
-├── di/              # Dependency Injection Module
-├── env/             # Environment Variables Module
-├── meta/            # Metadata Module
-├── mut/             # Partial Update Module
-├── search/          # Search & Query Module
-├── validator/       # Validation Module
-├── tools/           # internal tooling used by the workspace
-├── go.work          # Workspace configuration
-└── Makefile         # common tasks (test/coverage/badges)
-```
 
 ## Philosophy
 
