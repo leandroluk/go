@@ -1,7 +1,11 @@
 // oas/builder/response_builder.go
 package builder
 
-import "github.com/leandroluk/go/oas/types"
+import (
+	"encoding/json"
+
+	"github.com/leandroluk/go/oas/types"
+)
 
 type ResponseBuilder struct {
 	response *types.Response
@@ -9,6 +13,11 @@ type ResponseBuilder struct {
 
 func (b *ResponseBuilder) Response() *types.Response {
 	return b.response
+}
+
+// MarshalJSON implementa json.Marshaler
+func (b *ResponseBuilder) MarshalJSON() ([]byte, error) {
+	return json.Marshal(b.response)
 }
 
 func (b *ResponseBuilder) Description(value string) *ResponseBuilder {

@@ -1,7 +1,11 @@
 // oas/builder/parameter_builder.go
 package builder
 
-import "github.com/leandroluk/go/oas/types"
+import (
+	"encoding/json"
+
+	"github.com/leandroluk/go/oas/types"
+)
 
 type ParameterBuilder struct {
 	parameter *types.Parameter
@@ -55,4 +59,49 @@ func (b *ParameterBuilder) Schema(build func(target *SchemaBuilder)) *ParameterB
 	}
 	b.parameter.Schema = schema
 	return b
+}
+
+// Construtores
+
+// InPath cria um parameter de path
+func InPath(name string, schema interface{}) *ParameterBuilder {
+	return createParam(name, "path", schema).Required(true)
+}
+
+// InQuery cria um parameter de query
+func InQuery(name string, schema interface{}) *ParameterBuilder {
+	return createParam(name, "query", schema)
+}
+
+// InHeader cria um parameter de header
+func InHeader(name string, schema interface{}) *ParameterBuilder {
+	return createParam(name, "header", schema)
+}
+
+// InCookie cria um parameter de cookie
+func InCookie(name string, schema interface{}) *ParameterBuilder {
+	return createParam(name, "cookie", schema)
+}
+
+func createParam(name, in string, schema interface{}) *ParameterBuilder {
+	var s *types.Schema
+	switch v := schema.(type) {
+	case *SchemaBuilder:
+		s = v.schema
+	case *types.Schema:
+		s = v
+	}
+
+	return &ParameterBuilder{
+		parameter: &types.Parameter{
+			Name:   name,
+			In:     in,
+			Schema: s,
+		},
+	}
+}
+
+// MarshalJSON implementa json.Marshaler
+func (b *ParameterBuilder) MarshalJSON() ([]byte, error) {
+	return json.Marshal(b.parameter)
 }

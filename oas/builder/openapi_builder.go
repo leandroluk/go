@@ -1,7 +1,11 @@
 // oas/builder/openapi_builder.go
 package builder
 
-import "github.com/leandroluk/go/oas/types"
+import (
+	"encoding/json"
+
+	"github.com/leandroluk/go/oas/types"
+)
 
 type OpenAPIBuilder struct {
 	document *types.OpenAPI
@@ -9,6 +13,11 @@ type OpenAPIBuilder struct {
 
 func (b *OpenAPIBuilder) Document() *types.OpenAPI {
 	return b.document
+}
+
+// MarshalJSON implementa json.Marshaler
+func (b *OpenAPIBuilder) MarshalJSON() ([]byte, error) {
+	return json.Marshal(b.document)
 }
 
 func (b *OpenAPIBuilder) Title(value string) *OpenAPIBuilder {

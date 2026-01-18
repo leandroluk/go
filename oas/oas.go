@@ -14,7 +14,7 @@ type Server = types.Server
 type ServerVariable = types.ServerVariable
 type Paths = types.Paths
 type PathItem = types.PathItem
-type Operation = types.Operation
+type PathOperation = types.PathOperation
 type Parameter = types.Parameter
 type RequestBody = types.RequestBody
 type Response = types.Response
@@ -77,3 +77,27 @@ type EncodingBuilder = builder.EncodingBuilder
 func New() *builder.OpenAPIBuilder {
 	return builder.New()
 }
+
+// Schema construtores por tipo
+var (
+	String  = builder.String
+	Integer = builder.Integer
+	Number  = builder.Number
+	Boolean = builder.Boolean
+	Array   = builder.Array
+	Object  = builder.Object
+	Ref     = builder.Ref
+)
+
+// Operation, RequestBody, Response e Parameter construtores
+var (
+	Op              = builder.Operation // Renamed to avoid conflict with Operation type
+	Body            = builder.Body
+	ResponseCode    = builder.ResponseCode
+	ResponseRange   = builder.ResponseRange
+	ResponseDefault = builder.ResponseDefault
+	InPath          = builder.InPath
+	InQuery         = builder.InQuery
+	InHeader        = builder.InHeader
+	InCookie        = builder.InCookie
+)

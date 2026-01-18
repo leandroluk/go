@@ -43,53 +43,38 @@ func (b *PathItemBuilder) Parameter(build func(target *ParameterBuilder)) *PathI
 	return b
 }
 
-func (b *PathItemBuilder) Get(build func(target *OperationBuilder)) *PathItemBuilder {
-	operation := newOperation()
-	ob := &OperationBuilder{operation: operation}
-	if build != nil {
-		build(ob)
+func (b *PathItemBuilder) Get(op *OperationBuilder) *PathItemBuilder {
+	if op != nil {
+		b.item.Get = op.operation
 	}
-	b.item.Get = operation
 	return b
 }
 
-func (b *PathItemBuilder) Post(build func(target *OperationBuilder)) *PathItemBuilder {
-	operation := newOperation()
-	ob := &OperationBuilder{operation: operation}
-	if build != nil {
-		build(ob)
+func (b *PathItemBuilder) Post(op *OperationBuilder) *PathItemBuilder {
+	if op != nil {
+		b.item.Post = op.operation
 	}
-	b.item.Post = operation
 	return b
 }
 
-func (b *PathItemBuilder) Put(build func(target *OperationBuilder)) *PathItemBuilder {
-	operation := newOperation()
-	ob := &OperationBuilder{operation: operation}
-	if build != nil {
-		build(ob)
+func (b *PathItemBuilder) Put(op *OperationBuilder) *PathItemBuilder {
+	if op != nil {
+		b.item.Put = op.operation
 	}
-	b.item.Put = operation
 	return b
 }
 
-func (b *PathItemBuilder) Delete(build func(target *OperationBuilder)) *PathItemBuilder {
-	operation := newOperation()
-	ob := &OperationBuilder{operation: operation}
-	if build != nil {
-		build(ob)
+func (b *PathItemBuilder) Delete(op *OperationBuilder) *PathItemBuilder {
+	if op != nil {
+		b.item.Delete = op.operation
 	}
-	b.item.Delete = operation
 	return b
 }
 
-func (b *PathItemBuilder) Patch(build func(target *OperationBuilder)) *PathItemBuilder {
-	operation := newOperation()
-	ob := &OperationBuilder{operation: operation}
-	if build != nil {
-		build(ob)
+func (b *PathItemBuilder) Patch(op *OperationBuilder) *PathItemBuilder {
+	if op != nil {
+		b.item.Patch = op.operation
 	}
-	b.item.Patch = operation
 	return b
 }
 
@@ -123,8 +108,8 @@ func (b *PathItemBuilder) Trace(build func(target *OperationBuilder)) *PathItemB
 	return b
 }
 
-func newOperation() *types.Operation {
-	return &types.Operation{
+func newOperation() *types.PathOperation {
+	return &types.PathOperation{
 		Responses: map[string]*types.Response{},
 	}
 }

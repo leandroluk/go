@@ -1,7 +1,7 @@
 // oas/types/operation.go
 package types
 
-type Operation struct {
+type PathOperation struct {
 	Tags         []string               `json:"tags,omitempty"`
 	Summary      string                 `json:"summary,omitempty"`
 	Description  string                 `json:"description,omitempty"`
