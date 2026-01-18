@@ -12,6 +12,9 @@ type ValidationError struct {
 	formatter func(path string, code string, message string, meta map[string]any) string
 }
 
+var _ error = (*ValidationError)(nil)
+var _ interface{ Unwrap() []error } = (*ValidationError)(nil)
+
 func NewValidationError(issues []Issue) error {
 	if len(issues) == 0 {
 		return nil
@@ -27,6 +30,17 @@ func NewValidationErrorWithFormatter(issues []Issue, formatter func(path string,
 		Issues:    append([]Issue(nil), issues...),
 		formatter: formatter,
 	}
+}
+
+func (err ValidationError) Unwrap() []error {
+	if len(err.Issues) == 0 {
+		return nil
+	}
+	errs := make([]error, len(err.Issues))
+	for i, issue := range err.Issues {
+		errs[i] = fmt.Errorf("%s", err.formatIssue(issue))
+	}
+	return errs
 }
 
 func (err ValidationError) Error() string {
